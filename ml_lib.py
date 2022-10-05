@@ -129,56 +129,75 @@ class WeightMultiplication(MathematicalFunc):
 
 
 class SVMLossVectorized(Loss):
-    def __init__(self):
+    def __init__(self, margin: float = 1):
+        self.margin = margin
         self.x = None
         self.y = None
 
-    def forward(self, x: np.ndarray, y: list[int]) -> np.ndarray:
+    def forward(self, x: np.ndarray, y: list[int]) -> float:
         """
-        l(S, Y) = sum(max(0, sj-sy+1)
+        x are the scores of the model
+        y are the indices of the targets
+        l(X,Y) = sum(max(0, X-Y+m)) / len(X)
         """
+        from time import perf_counter
         self.x = x
+
+        # self.y = np.array([[row[idx]] for row, idx in zip(x, y)])
+        # - margin to compensate for the loss of the true prediction wich is max(0, x - x + 1) and  adds 1 to the loss.
+        # return np.sum(np.maximum(np.zeros_like(self.x), (self.x - self.y + self.margin)))/len(self.x)-self.margin
+
+        # The following code is faster, than the one in the comment!
         self.y = y
         losses = []
         for score, target in zip(self.x, self.y):
-            margin = np.maximum(0, score - score[target] + 1)
-            margin[target] = 0
-            losses.append(margin.sum())  # TODO: Is this sum accounted for in the backward pass? /len(margin)?
-        return np.array(losses).sum()/len(x)
+            penalty = np.maximum(0, score - score[target] + self.margin)
+            penalty[target] = 0
+            losses.append(penalty.sum())
+        return np.array(losses).sum()/self.x.size
 
     def backward(self) -> np.ndarray:
         """
         Returns a matrix of ones in the shape of the scores. Since the loss only consists of linear functions
         and a max-function only ones are passed on. The max-function is derived by zeroing the target
         element, since it has no effect on the loss.
+        For the derivative of the max-function see:
+        https://stackoverflow.com/questions/46411180/implement-relu-derivative-in-python-numpy
+
+        l(x,y) = sum(max(0, x-y+m)) / len(x) - m
+        l(x, y) = d(c(b(a(x, y))))
+        a(x, y) = x-y+m
+        b(a) = max(0, a)
+        c(b) = sum(b)
+        d(c) = c / len(c)
+
+        dl/dd = 1
+        dl/dc = -1 / len(c) * ld/dd
+        dl/db = ones_like(b) * dl/dc
+        dl/da = 1 if a > 0 else 0 * dl/db
+        dl/dx = ones_like(x) * dl/da
         """
-        grads = []
-        for score, target in zip(self.x, self.y):
-            #############
-            # explanation needs to take sum(losses)/len(losses) into account!!!!
-            #############
+        # y = np.array([[row[idx]] for row, idx in zip(self.x, self.y)])
+        # dldc: float = -1. / pow(np.sum(np.maximum(np.zeros_like(self.x), (self.x - self.y + self.margin))), 2)
+        # dldb = np.ones_like(np.maximum(np.zeros_like(self.x), (self.x - self.y + self.margin))) * dldc
+        # dlda = ((self.x - self.y + self.margin) > 0).astype("float64") * dldb
+        # dldx = np.ones_like(self.x) * dlda
+        # Does not account for the increased leverage of the target!
 
-            # l(s) = sum(max(0, sj-st+1)  st is the target; it is not summed up
-            # l(s) = c(b(a(s)))
-            # a(s) = sj-st+1
-            # b(s) = max(0, a(s)) https://stackoverflow.com/questions/46411180/implement-relu-derivative-in-python-numpy
-            # c(s) = sum(b(s))  st is not summed up
+        dldc: float = 1. / self.x.size
+        dldb = np.ones_like(self.x) * dldc  # replace with full
 
-            # l'(s) = c'(b(a(s))) * b'(a(s)) * a'(s)
+        max_grad = np.zeros_like(self.x)
+        for x in range(max_grad.shape[0]):
+            for y in range(max_grad.shape[1]):
+                max_grad[x][y] = (self.x[x][y] - self.x[x][self.y[x]] + self.margin) > 0
 
-            # The derivative of the max function is not defined for 0 resulting in the spaghetti-code below...
-            # da = np.ones_like(score)  # da/ds = 1  # OUTDATED!!! Replaced by line below:
-            da = np.ones_like(score).astype("float64") / len(self.x)  # / len(score) = * len(score)^-1
-            db = ((score - score[target] + 1.) >= 0.) * 1.
-            # db[self.target] = 0  # can be ignored, because it is changed later
-            # dc = np.ones_like(self.scores)
-            grad = db * da  # dc * db * da     dc is a matrix of ones, so it can be ignored
-            db = ((score - score[target] + 1.) > 0.) * 1.  # needs to be repeated with > instead of >=
-            db[target] = 0.
-            grad[target] = -sum(db) / len(self.x)  # TODO:  / len(self.x) requires further investigation!
-            # assert grad.shape == score.shape  # for debugging
-            grads.append(grad)
-        return np.array(grads)
+        dldb = np.multiply(dldb, max_grad)
+
+        for row, idx in zip(dldb, self.y):
+            row[idx] = -(row.sum() - row[idx])
+
+        return np.array(dldb)
 
 
 class SVMLossVectorizedII(SVMLossVectorized):

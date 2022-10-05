@@ -4,7 +4,7 @@ import unittest
 import numpy as np
 from nearest_neighbour import Cifar10Dataset, ManhattanModel, train, evaluate
 from ml_lib import SVMLossVectorized, WeightMultiplication, BiasAddition,\
-    LinearLayer, MathematicalFunc, Model, StochasticGradientDecent, Layer
+    LinearLayer, MathematicalFunc, Model, StochasticGradientDecent, Layer, SVMLossVectorizedII
 from linear_classification import ExperimentalModel, LinearClassifier
 
 
@@ -98,7 +98,7 @@ class TestEvaluate(unittest.TestCase):
 
 class TestSVMLossVectorized(unittest.TestCase):
     def setUp(self):
-        self.loss_func = SVMLossVectorized()
+        self.criterion = SVMLossVectorized()
 
     def test_forward(self):
         scores = np.array([
@@ -107,7 +107,7 @@ class TestSVMLossVectorized(unittest.TestCase):
             [2.2, 2.5, -3.1]   # 2.2-(-3.1)+1 + 2.5-(-3.1)+1 = 12.9
         ])
         targets = [0, 1, 2]
-        loss = self.loss_func.forward(x=scores, y=targets)
+        loss = self.criterion.forward(x=scores, y=targets)
         self.assertEqual(5.26667, np.round(loss, 5).tolist())
 
     def test_backward(self):
@@ -117,10 +117,10 @@ class TestSVMLossVectorized(unittest.TestCase):
             [2.2, 2.5, -3.1]
         ])
         targets = [0, 1, 2]
-        losses = self.loss_func.forward(x=scores, y=targets)
-        grads = self.loss_func.backward()
+        losses = self.criterion.forward(x=scores, y=targets)
+        grads = self.criterion.backward()
 
-        self.assertEqual([[-1.0, 1.0, 0.0], [0.0, 0.0, 0.0], [1.0, 1.0, -2.0]], np.round(grads, 1).tolist())
+        self.assertEqual([[-1.0, 1.0, 0.0], [0.0, 0.0, 0.0], [1.0, 1.0, -2.0]], np.round(grads, 3).tolist())
         self.assertEqual(scores.shape, grads.shape)
 
     def test_gradient_check(self):
@@ -134,19 +134,37 @@ class TestSVMLossVectorized(unittest.TestCase):
         with np.nditer(grad_numerical, flags=['multi_index'], op_flags=['readwrite']) as it:
             for element in it:
                 scores[it.multi_index] += d
-                fxd = self.loss_func.forward(scores, targets)
+                fxd = self.criterion.forward(scores, targets)
                 scores = scores_backup.copy()
-                fx = self.loss_func.forward(scores, targets)
+                fx = self.criterion.forward(scores, targets)
 
                 ds = (fxd - fx) / d
                 element[...] = ds  # No sum due to single float value being the output.
 
         # calculate analytical gradient
-        loss = self.loss_func.forward(scores, targets)
-        grad_analytical = self.loss_func.backward()
+        loss = self.criterion.forward(scores, targets)
+        grad_analytical = self.criterion.backward()
 
         # compare gradients
         self.assertEqual(np.round(grad_numerical, 6).tolist(), np.round(grad_analytical, 6).tolist())
+
+    def test_torch_comparison(self):
+        t_criterion = SVMLossVectorizedII()
+
+        scores = np.array([
+            [3.2, 5.1, -1.7],
+            [1.3, 4.9, 2.0],
+            [2.2, 2.5, -3.1]
+        ])
+        targets = [0, 1, 2]
+
+        loss_m = self.criterion.forward(scores, targets)
+        loss_t = t_criterion.forward(scores, targets).item()
+        self.assertEqual(loss_t, loss_m)
+
+        grad_m = self.criterion.backward()
+        grad_t = t_criterion.backward()
+        print()
 
 
 class TestWeightMultiplication(unittest.TestCase):

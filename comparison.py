@@ -1,10 +1,11 @@
 #!/usr/bin/env pyton
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import numpy as np
 
 from nearest_neighbour import Cifar10Dataset
 from nearest_neighbour import evaluate as evaluate1
-from ml_lib import SVMLossVectorizedII as SVMLossVectorized, StochasticGradientDecent
+from ml_lib import SVMLossVectorized as SVMLossVectorized, StochasticGradientDecent
 from linear_classification import LinearClassifier, ExperimentalModel, SigmoidModel
 from torch_linear_classification import TorchLinearClassifier, TorchExperimentalModel, TorchSigmoidModel
 
@@ -25,10 +26,11 @@ def train(models: list, dataset: Cifar10Dataset, criteria: list, optimizers: lis
 
             m_scores = models[0].forward(data)
             t_scores = models[1].forward(torch.from_numpy(data))
+            assert np.round(m_scores, 3).tolist() == torch.round(t_scores, decimals=3).tolist(), "scores are unequal"
 
             m_loss = criteria[0](m_scores, targets)
             t_loss = criteria[1](t_scores, torch.tensor(targets))
-            assert round(float(m_loss), 6) == round(t_loss.item(), 6), f"{m_loss} != {t_loss.item()}"
+            assert round(m_loss, 3) == round(t_loss.item(), 3), f"{m_loss} != {t_loss.item()}"
 
             m_grads = []
             grad = criteria[0].backward()
@@ -44,6 +46,9 @@ def train(models: list, dataset: Cifar10Dataset, criteria: list, optimizers: lis
             for param in models[1].parameters():
                 t_grads.append(param.grad.numpy())
             optimizers[1].step()
+
+            # The following assertion does not work due to torch transposing weights!
+            # assert [np.round(g, 6).tolist() for g in m_grads] == [np.round(g, 6).tolist() for g in t_grads]
 
             batch_losses0.append(m_loss)
             batch_losses1.append(t_loss.item())

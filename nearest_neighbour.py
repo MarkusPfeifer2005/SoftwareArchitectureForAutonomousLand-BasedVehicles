@@ -73,7 +73,7 @@ def evaluate(model, dataset: Cifar10Dataset,
             if prediction == target:
                 correct += 1
 
-    print(f"{correct} of {total} examples were correct resulting in an accuracy of {correct/total*100:.2f}%.")
+    print(f"{correct} of {total} examples were correct, resulting in an accuracy of {correct/total*100:.2f}%.")
     return correct/total*100
 
 
