@@ -2,7 +2,7 @@
 from nearest_neighbour import Cifar10Dataset, evaluate
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from ml_lib import SVMLossVectorizedII as SVMLossVectorized, LinearLayer, SigmoidLayer, Model, StochasticGradientDecent
+from ml_lib import SVMLossVectorized, LinearLayer, SigmoidLayer, Model, StochasticGradientDecent
 
 
 class LinearClassifier(Model):

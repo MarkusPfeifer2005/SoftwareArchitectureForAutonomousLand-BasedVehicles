@@ -3,8 +3,8 @@
 import unittest
 import numpy as np
 from nearest_neighbour import Cifar10Dataset, ManhattanModel, train, evaluate
-from ml_lib import SVMLossVectorized, WeightMultiplication, BiasAddition,\
-    LinearLayer, MathematicalFunc, Model, StochasticGradientDecent, Layer, SVMLossVectorizedII
+from ml_lib import SVMLossVectorized, WeightMultiplication, BiasAddition, SigmoidLayer,\
+    LinearLayer, MathematicalFunc, Model, StochasticGradientDecent, Layer
 from linear_classification import ExperimentalModel, LinearClassifier
 
 
@@ -108,7 +108,7 @@ class TestSVMLossVectorized(unittest.TestCase):
         ])
         targets = [0, 1, 2]
         loss = self.criterion.forward(x=scores, y=targets)
-        self.assertEqual(5.26667, np.round(loss, 5).tolist())
+        self.assertEqual(round(15.8/scores.size, 5), np.round(loss, 5).tolist())
 
     def test_backward(self):
         scores = np.array([
@@ -120,51 +120,10 @@ class TestSVMLossVectorized(unittest.TestCase):
         losses = self.criterion.forward(x=scores, y=targets)
         grads = self.criterion.backward()
 
-        self.assertEqual([[-1.0, 1.0, 0.0], [0.0, 0.0, 0.0], [1.0, 1.0, -2.0]], np.round(grads, 3).tolist())
         self.assertEqual(scores.shape, grads.shape)
-
-    def test_gradient_check(self):
-        scores = np.random.randint(-10, 10, size=(15, 10)).astype("float64")
-        scores_backup = scores.copy()
-        targets = [0 for _ in range(len(scores))]
-        d = 1e-6
-
-        # calculate numerical gradient
-        grad_numerical = np.zeros_like(scores)
-        with np.nditer(grad_numerical, flags=['multi_index'], op_flags=['readwrite']) as it:
-            for element in it:
-                scores[it.multi_index] += d
-                fxd = self.criterion.forward(scores, targets)
-                scores = scores_backup.copy()
-                fx = self.criterion.forward(scores, targets)
-
-                ds = (fxd - fx) / d
-                element[...] = ds  # No sum due to single float value being the output.
-
-        # calculate analytical gradient
-        loss = self.criterion.forward(scores, targets)
-        grad_analytical = self.criterion.backward()
-
-        # compare gradients
-        self.assertEqual(np.round(grad_numerical, 6).tolist(), np.round(grad_analytical, 6).tolist())
-
-    def test_torch_comparison(self):
-        t_criterion = SVMLossVectorizedII()
-
-        scores = np.array([
-            [3.2, 5.1, -1.7],
-            [1.3, 4.9, 2.0],
-            [2.2, 2.5, -3.1]
-        ])
-        targets = [0, 1, 2]
-
-        loss_m = self.criterion.forward(scores, targets)
-        loss_t = t_criterion.forward(scores, targets).item()
-        self.assertEqual(loss_t, loss_m)
-
-        grad_m = self.criterion.backward()
-        grad_t = t_criterion.backward()
-        print()
+        self.assertEqual([[-0.1111111111111111, 0.1111111111111111, 0.0],
+                          [0.0, -0.0, 0.0],
+                          [0.1111111111111111, 0.1111111111111111, -0.2222222222222222]], grads.tolist())
 
 
 class TestWeightMultiplication(unittest.TestCase):
@@ -247,47 +206,10 @@ class TestBiasAddition(unittest.TestCase):
         self.assertEqual(np.round(db_num, 3).tolist(), np.round(db_anl, 3).tolist())
 
 
-# class TestL2Regularization(unittest.TestCase):
-#     def setUp(self):
-#         self.reg_func = L2Regularization()
-#         self.model = LinearClassifier(num_pixels=25, num_classes=3)
-#         self.model.layers[0].parameters["weights"] *= 1e2
-#
-#     def test_forward(self):
-#         penalty = self.reg_func.forward(self.model.layers[0].parameters["weights"])
-#         self.assertIsInstance(penalty, float)
-#
-#     def test_backward(self):
-#         self.test_forward()
-#         grad = self.reg_func.backward()
-#         self.assertEqual(self.model.layers[0].parameters["weights"].shape, grad.shape)
-#
-#     def test_grad_check(self):
-#         d = 1e-5
-#
-#         # numerically calculate gradient
-#         numerical_grad = np.zeros_like(self.model.layers[0].parameters["weights"])
-#         with np.nditer(numerical_grad, flags=['multi_index'], op_flags=['readwrite']) as it:
-#             weights_backup = self.model.layers[0].parameters["weights"].copy()
-#             for element in it:
-#                 self.model.layers[0].parameters["weights"][it.multi_index] += d
-#                 fxd = self.reg_func.forward(self.model.layers[0].parameters["weights"])
-#                 self.model.layers[0].parameters["weights"] = weights_backup.copy()
-#                 fx = self.reg_func.forward(self.model.layers[0].parameters["weights"])
-#
-#                 db = (fxd - fx) / d
-#                 element[...] = db
-#
-#         # analytically calculate gradient
-#         analytical_grad = self.reg_func.backward()
-#
-#         self.assertEqual(np.round(numerical_grad).tolist(), np.round(analytical_grad).tolist())
-
-
 class TestLayer(unittest.TestCase):
     def setUp(self):
-        self.layers = [LinearLayer()]
-                       # SigmoidLayer()]
+        self.layers = [LinearLayer(),
+                       SigmoidLayer()]
 
     def test_backward(self):
         data = np.random.randint(0, 255, (2, 3072)).astype("float64")
@@ -320,7 +242,7 @@ class TestModel(unittest.TestCase):
             self.assertEqual((9, 10), scores.shape)
 
     def test_backward(self):
-        data = np.random.randint(0, 255, size=(9, 3072))
+        data = np.random.randint(0, 255, size=(2, 3072))
         for model in self.models:
             scores = model.forward(data)
             loss_grad = np.ones_like(scores)
@@ -396,7 +318,6 @@ class TestDummyModel(unittest.TestCase):
         x = np.random.randint(0, 255, size=(9, 3072))
         s = self.model.forward(x)
         self.assertEqual((9, 10), s.shape)
-        # Values are not (!) ones!
 
     def test_backward(self):
         x = np.random.randint(0, 255, size=(9, 3072))

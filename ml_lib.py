@@ -200,37 +200,6 @@ class SVMLossVectorized(Loss):
         return np.array(dldb)
 
 
-class SVMLossVectorizedII(SVMLossVectorized):
-    def __init__(self):
-        super().__init__()
-        self.criterion = nn.MultiMarginLoss()
-        self.loss = None
-
-    def forward(self, x: np.ndarray, y: list[int]) -> np.ndarray:
-        self.x = torch.tensor(x, requires_grad=True)
-        self.y = torch.tensor(y)
-        self.loss = self.criterion(self.x, self.y)
-        return self.loss.detach().numpy()
-
-    def backward(self) -> np.ndarray:
-        self.loss.backward()
-        return self.x.grad.numpy()
-
-
-# class L2Regularization(Loss):
-#     def __init__(self):
-#         self.weights = None
-#
-#     def forward(self, weights: np.ndarray) -> float:
-#         self.weights = weights
-#         penalty = self.weights**2
-#         penalty = penalty.sum()
-#         return penalty
-#
-#     def backward(self):
-#         return self.weights * 2  # * np.ones_like(self.weights)
-
-
 class LinearLayer(Layer):
     def __init__(self, num_pixels: int = 3072, num_classes: int = 10):
         super().__init__()
