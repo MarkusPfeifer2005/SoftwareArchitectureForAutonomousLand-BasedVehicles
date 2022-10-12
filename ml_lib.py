@@ -2,9 +2,6 @@ import os
 import pickle
 import numpy as np
 
-import torch
-import torch.nn as nn
-
 
 class MathematicalFunc:
     def __init__(self, *args, **kwargs):
@@ -84,6 +81,9 @@ class Optimizer:
 
 class Loss:
     def forward(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+        raise NotImplementedError
+
+    def backward(self) -> np.ndarray:
         raise NotImplementedError
 
     def __call__(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -200,11 +200,37 @@ class SVMLossVectorized(Loss):
         return np.array(dldb)
 
 
+class MSE(Loss):
+    def __init__(self):
+        self.x = None
+        self.y = None
+
+    def forward(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+        """l(X, Y) = sum((X - Y)^2) / len(X)"""
+        self.x, self.y = x, y
+        return np.mean(np.power(self.x - self.y, 2))
+
+    def backward(self) -> np.ndarray:
+        """
+        l(X, Y) = d(c(b(a(X, Y))))
+        a(X, Y) = X - Y
+        b(a) = a^2
+        c(b) = sum(b)
+        d(c) = c / len(X)
+
+        d'(c) = 1 / len(X)
+        c'(b) = ones_like(X)
+        b'(a) = 2 * a
+        a'(X) = ones_like(X)
+        """
+        return 1 / len(self.x) * np.ones_like(self.x) * 2 * (self.x - self.y) * np.ones_like(self.x)
+
+
 class LinearLayer(Layer):
-    def __init__(self, num_pixels: int = 3072, num_classes: int = 10):
+    def __init__(self, num_pixels: int = 3072, num_classes: int = 10, weight_init: float = 1.):
         super().__init__()
-        self.parameters = [np.random.uniform(-1, 1, (num_pixels, num_classes)),
-                           np.random.uniform(-1, 1, (num_classes,))]
+        self.parameters = [np.random.uniform(-weight_init, weight_init, (num_pixels, num_classes)),
+                           np.random.uniform(-weight_init, weight_init, (num_classes,))]
         self.operations = [WeightMultiplication(weight=self.parameters[0]), BiasAddition(bias=self.parameters[1])]
 
 

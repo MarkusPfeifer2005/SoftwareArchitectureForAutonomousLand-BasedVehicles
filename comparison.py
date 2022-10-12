@@ -1,11 +1,11 @@
-#!/usr/bin/env pyton
+#!/usr/bin/env python
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
 
 from nearest_neighbour import Cifar10Dataset
 from nearest_neighbour import evaluate as evaluate1
-from ml_lib import SVMLossVectorized as SVMLossVectorized, StochasticGradientDecent
+from ml_lib import SVMLossVectorized, StochasticGradientDecent
 from linear_classification import LinearClassifier, ExperimentalModel, SigmoidModel
 from torch_linear_classification import TorchLinearClassifier, TorchExperimentalModel, TorchSigmoidModel
 

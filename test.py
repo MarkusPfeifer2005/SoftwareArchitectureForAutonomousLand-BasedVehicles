@@ -4,7 +4,7 @@ import unittest
 import numpy as np
 from nearest_neighbour import Cifar10Dataset, ManhattanModel, train, evaluate
 from ml_lib import SVMLossVectorized, WeightMultiplication, BiasAddition, SigmoidLayer,\
-    LinearLayer, MathematicalFunc, Model, StochasticGradientDecent, Layer
+    LinearLayer, MathematicalFunc, Model, StochasticGradientDecent, Layer, MSE
 from linear_classification import ExperimentalModel, LinearClassifier
 
 
@@ -357,5 +357,25 @@ class TestOptimizer(unittest.TestCase):
                          self.model.layers[1].parameters[1].tolist())
 
 
-if __name__ == '__main__':
+class TestMSE(unittest.TestCase):
+    def test_forward(self):
+        x = np.array([[1.], [2.]])
+        y = np.array([[1.], [4.]])
+
+        l = MSE()
+        loss = l(x, y)
+        self.assertEqual(2., loss)
+
+    def test_backward(self):
+        x = np.array([[1.], [2.]])
+        y = np.array([[1.], [4.]])
+
+        l = MSE()
+        loss = l(x, y)
+        dldx = l.backward()
+
+        self.assertEqual([[0.], [-2.]], dldx.tolist())
+
+
+if __name__ == "__main__":
     unittest.main()
