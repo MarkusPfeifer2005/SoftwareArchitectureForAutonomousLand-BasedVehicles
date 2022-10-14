@@ -12,6 +12,7 @@ class LinerRegression(Model):
         self.layers = [LinearLayer(num_pixels=num_features, num_classes=num_outputs, weight_init=1)]
 
     def __call__(self, x: np.ndarray) -> np.ndarray:
+        """Runs the forward method."""
         return self.forward(x)
 
 
@@ -52,22 +53,45 @@ def train(model: Model, dataset: GenerativeDataset, criterion, optimizer, epochs
 
 
 def main():
-    dataset = GenerativeDataset(lambda x: -2 * x + 3, slice(0, 100, 1))
+    dataset = GenerativeDataset(lambda x: -2 * x + 30, slice(0, 100, 1))
     model = LinerRegression(num_features=1, num_outputs=1)
     optim = StochasticGradientDecent(model.layers, lr=1e-4)
+    loss_func = MSE()
 
-    fig, axs = plt.subplots(2)
-    fig.tight_layout()
-    axs[0].set_title("gradient descent")
-    axs[0].set_xlabel('x')
-    axs[0].set_ylabel('y')
-    axs[1].set_title("loss development")
-    axs[1].set_xlabel("epoch")
-    axs[1].set_ylabel("loss")
+    # create frame
+    fig = plt.figure()
 
-    train(model=model, dataset=dataset, criterion=MSE(), optimizer=optim, epochs=int(1e2), lax=axs[1], sax=axs[0])
+    # create plot 1
+    ax1 = fig.add_subplot(2, 2, 1)
+    ax1.set_title("gradient descent")
+    ax1.set_xlabel('x')
+    ax1.set_ylabel('y')
 
-    axs[0].scatter(dataset.x, dataset.y, s=1)
+    # create plot 2
+    ax2 = fig.add_subplot(2, 2, 2)
+    ax2.set_title("loss development")
+    ax2.set_xlabel("epoch")
+    ax2.set_ylabel("loss")
+
+    # 3d plot of loss
+    ax3 = fig.add_subplot(2, 2, 3, projection="3d")
+    ax3.set_title("l(f(w, b))")
+    ax3.set_xlabel('w')
+    ax3.set_ylabel('b')
+    ax3.set_zlabel('l')
+
+    # generate data
+    train(model=model, dataset=dataset, criterion=loss_func, optimizer=optim, epochs=int(50), lax=ax2, sax=ax1)
+    ax1.scatter(dataset.x, dataset.y, s=1)
+    for w in np.arange(-3, 0, .1):
+        for b in np.arange(-3, 0, .1):
+            model.layers[0].parameters = [np.array([[w]]).astype("float64"), np.array([[b]]).astype("float64")]
+            model.layers[0].operations[0].parameters[0] = model.layers[0].parameters[0]  # restore reference
+            model.layers[0].operations[1].parameters[0] = model.layers[0].parameters[1]  # restore reference
+            ax3.scatter(w, b, loss_func(model(dataset.x), dataset.y), color="green", s=5)
+
+    # Plotting the graphs.
+    fig.tight_layout()  # Make sure labels are not overlapping.
     plt.show()
 
 
