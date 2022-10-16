@@ -9,7 +9,7 @@ class LinerRegression(Model):
     def __init__(self, num_features: int, num_outputs: int):
         super().__init__()
         self.file_prefix = "linear_reg@"
-        self.layers = [LinearLayer(num_pixels=num_features, num_classes=num_outputs, weight_init=1)]
+        self.layers = [LinearLayer(num_pixels=num_features, num_classes=num_outputs, weight_init=1.)]
 
     def __call__(self, x: np.ndarray) -> np.ndarray:
         """Runs the forward method."""
@@ -34,26 +34,39 @@ class GenerativeDataset:
 
 
 def train(model: Model, dataset: GenerativeDataset, criterion, optimizer, epochs: int, completed_epochs: int = 0,
-          sax: plt.subplot = None, lax: plt.subplot = None):
-    avg_losses = []
-    for _ in tqdm(range(completed_epochs, completed_epochs + epochs), desc="Training the model"):
+          axs: dict[plt.subplot, ...] = None):
+    """dict keys: gr_dc, ls_dv, gb_ls, wb_dv"""
+    avg_losses, weights, biases = [], [], []
+    for epoch in tqdm(range(completed_epochs, completed_epochs + epochs), desc="Training the model"):
         batch_losses = []
         for batch in dataset:
             data, targets = batch
-
             scores = model.forward(data)
-            sax.plot(scores)
             loss = criterion.forward(scores, targets)  # loss is the average loss over the entire batch (x)
             optimizer.step(grad=criterion.backward())
+            if axs["gr_dc"]:  # plotting
+                axs["gr_dc"].plot(scores, label=f"epoch: {epoch}")
             batch_losses.append(loss)
-        avg_losses.append(sum(batch_losses)/len(batch_losses))
+        weights.append(model.layers[0].parameters[0].item())
+        biases.append(model.layers[0].parameters[1].item())
+        avg_loss = sum(batch_losses)/len(batch_losses)
+        avg_losses.append(avg_loss)
+        if axs["gb_ls"]:  # plotting
+            axs["gb_ls"].scatter(model.layers[0].parameters[0], model.layers[0].parameters[1],
+                                 avg_loss, color="red", s=5)
 
-    if lax:
-        lax.plot(avg_losses)
+    # plotting:
+    if axs["ls_dv"]:
+        axs["ls_dv"].plot(avg_losses)
+    if axs["wb_dv"]:
+        axs["wb_dv"].plot(weights)
+        axs["wb_dv"].plot(biases)
+
+    axs["gr_dc"].legend(loc="upper right", prop={'size': 3})
 
 
 def main():
-    dataset = GenerativeDataset(lambda x: -2 * x + 30, slice(0, 100, 1))
+    dataset = GenerativeDataset(lambda x: -2 * x + 7, slice(0, 100, 1))
     model = LinerRegression(num_features=1, num_outputs=1)
     optim = StochasticGradientDecent(model.layers, lr=1e-4)
     loss_func = MSE()
@@ -80,8 +93,15 @@ def main():
     ax3.set_ylabel('b')
     ax3.set_zlabel('l')
 
+    # weight and bias development
+    ax4 = fig.add_subplot(2, 2, 4)
+    ax4.set_title("parameter development")
+    ax4.set_xlabel("epoch")
+    ax4.set_ylabel("parameter")
+
     # generate data
-    train(model=model, dataset=dataset, criterion=loss_func, optimizer=optim, epochs=int(50), lax=ax2, sax=ax1)
+    train(model=model, dataset=dataset, criterion=loss_func, optimizer=optim, epochs=int(30),
+          axs={"gr_dc": ax1, "ls_dv": ax2, "gb_ls": ax3, "wb_dv": ax4})
     ax1.scatter(dataset.x, dataset.y, s=1)
     for w in np.arange(-3, 0, .1):
         for b in np.arange(-3, 0, .1):
