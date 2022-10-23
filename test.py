@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import unittest
+import os
+import shutil
 import numpy as np
 from nearest_neighbour import Cifar10Dataset, ManhattanModel, train, evaluate
 from ml_lib import SVMLossVectorized, WeightMultiplication, BiasAddition, SigmoidLayer,\
@@ -227,12 +229,21 @@ class TestLayer(unittest.TestCase):
 
 
 class TestModel(unittest.TestCase):
+    test_dir_name = "test-files"
+
     def setUp(self):
+        os.mkdir(self.test_dir_name)
         self.criterion = SVMLossVectorized()
         self.models = [
             LinearClassifier(),
             ExperimentalModel()
         ]
+
+    def tearDown(self):
+        try:
+            shutil.rmtree(self.test_dir_name)
+        except FileNotFoundError:
+            pass
 
     def test_forward(self):
         data = np.random.randint(0, 255, size=(9, 3072))
@@ -257,6 +268,20 @@ class TestModel(unittest.TestCase):
             # compare gradients
             for num_grad, anl_grad in zip(numerical_grads, analytical_grads):
                 self.assertEqual(np.round(num_grad, 2).tolist(), np.round(anl_grad, 2).tolist())
+
+    def test_save(self):
+        for model in self.models:
+            model.save(path=self.test_dir_name, epoch=0)
+            self.assertTrue(os.path.isfile(os.path.join(self.test_dir_name, f"{model.file_prefix}{0}")))
+
+    def test_load(self):
+        evaluation_set: Cifar10Dataset = Cifar10Dataset(batches=slice(4, 5))
+        for model in self.models:
+            accuracy1 = evaluate(model, evaluation_set)
+            model.save(path=self.test_dir_name, epoch=0)
+            model.load(self.test_dir_name)
+            accuracy2 = evaluate(model, evaluation_set)
+            self.assertEqual(accuracy1, accuracy2)
 
 
 class DummyLayer(Layer):
