@@ -4,28 +4,69 @@ import numpy as np
 
 
 class MathematicalFunc:
+    """Abstract representation of a mathematical function.
+
+    This is the core abstract class for this library. It is the code representation of a mathematical function.
+    For this purpose it is outfitted with internal parameters and an input x. There can be multiple internal
+    parameters, but only a single input.
+    """
+
     def __init__(self, *args, **kwargs):
         self.parameters = []
         self.x = None
 
     def forward(self, x: np.ndarray) -> np.ndarray:
+        """Representation of the execution of the mathematical function.
+
+        The forward pass is the main pass of the mathematical function. Here the input is manipulated, using the
+        internal parameters, according to the specified operations.
+
+        :param x: ndarray
+        :return: This method returns the output of the mathematical function, a ndarray.
+        """
+
         raise NotImplementedError
 
     def backward(self, prev_grad: np.ndarray) -> tuple[np.ndarray, list]:
+        """Representation of the partial derivative of the function.
+
+        This is not the final derivative of the mathematical function, it is necessary to combine it using the chain
+        rule. With the usage of the chain rule the gradient for the mathematical function parameters is calculated.
+
+        :param prev_grad: The product of the previously calculated gradients. Chain rule was applied.
+        :return: a tuple containing the ndarray holding the gradient for the input and a list holding the gradients of
+        the parameters.
+        """
+
         raise NotImplementedError
 
 
 class Layer(MathematicalFunc):
+    """Multiple nested mathematical functions.
+
+    A sequence of nested mathematical functions forms a layer. From a mathematical point of view, a layer is simply a
+    large mathematical function, but the abstraction of layers offers better usability. These layers are useful
+    combinations of mathematical functions that perform specific tasks.
+    """
+
     def __init__(self):
         super().__init__()
         self.operations = []
 
-    def forward(self, x) -> np.ndarray:
+    def forward(self, x: np.ndarray) -> np.ndarray:
+        """The input gets passed in sequence through all the forward methods of the operations."""
+
         for operation in self.operations:
             x = operation.forward(x)
         return x
 
     def backward(self, grad: np.ndarray) -> tuple[np.ndarray, list]:
+        """Calculates the gradients for the input and the internal parameters.
+
+        :param grad: Previous gradient.
+        :return: Tuple holding the gradient for the function input and the gradients for all the parameters.
+        """
+
         parameter_grads = []
         for operation in reversed(self.operations):
             grad, p_grads = operation.backward(grad)
@@ -34,23 +75,44 @@ class Layer(MathematicalFunc):
 
 
 class Model:
+    """Complete mathematical function modelling the training data.
+
+    Multiple layers form a model. A model is the finalized mathematical function with and architecture adjusted to the
+    training data.
+    """
+
     def __init__(self):
         self.file_prefix = "model"
         self.layers = []
 
     def forward(self, x: np.ndarray):
+        """The input is passed through all layers of the model.
+
+        :param x: Ndarray with the input of the model.
+        :return: Output of the model.
+        """
+
         for layer in self.layers:
             x = layer.forward(x)
         return x
 
     def save(self, path: str, epoch: int):
-        """Saves the whole model using pickle."""
+        """Saves the whole model using pickle.
+
+        :param path: A string holding the target address; the model name is automatically created.
+        :param epoch: Number describing how often the model has been trained on the entire training dataset.
+        """
+
         parameters = [layer.parameters for layer in self.layers]
         with open(os.path.join(path, f"{self.file_prefix}{epoch}"), "wb") as file:
             pickle.dump(parameters, file)
 
     def load(self, path: str) -> int:
-        """Loads weights and bias from file."""
+        """Loads weights and bias from file.
+
+        :param path: Path to the desired file.
+        """
+
         epochs = [int(file.replace(self.file_prefix, '')) for file in os.listdir(path) if self.file_prefix in file]
         assert epochs != [], f"No files to load in {path}!"
         filename = os.path.join(path, f"{self.file_prefix}{str(max(epochs))}")
@@ -64,9 +126,19 @@ class Model:
         return max(epochs)
 
     def __call__(self, x: np.ndarray):
+        """Modified forward pass.
+
+        :return: Index of the maximum in the output matrix.
+        """
+
         return np.argmax(self.forward(x))
 
     def parameters(self) -> np.ndarray:
+        """Gets all the parameters of the model.
+
+        :return: Yields all the parameters.
+        """
+
         for layer in self.layers:
             for op in layer.operations:
                 for param in op.parameters:
@@ -74,16 +146,37 @@ class Model:
 
 
 class Optimizer:
+    """Abstract class for optimizing models."""
+
     def __init__(self, model_layers: list, lr: float):
         self.lr = lr
         self.model_layers = model_layers
 
 
 class Loss:
+    """Computes the inaccuracy of the model.
+
+    The loss function compares the target to the prediction of the model. It returns a numerical value representing the
+    difference between prediction and target and therefore its inaccuracy.
+    """
+
     def forward(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+        """Calculates difference between prediction and target.
+
+        :param x: Predictions as ndarray.
+        :param y: Targets as ndarray.
+        :return: Numerical value for the inaccuracy of the model as a ndarray (depending on the function it can hold
+        only a single element).
+        """
+
         raise NotImplementedError
 
     def backward(self) -> np.ndarray:
+        """Calculates gradient of the scores by applying the chain rule.
+
+        :return: Gradient of the scores as ndarray.
+        """
+
         raise NotImplementedError
 
     def __call__(self, x: np.ndarray, y: np.ndarray) -> np.ndarray:
@@ -91,6 +184,8 @@ class Loss:
 
 
 class BiasAddition(MathematicalFunc):
+    """Fundamental operation adding a bias matrix to the input."""
+
     def __init__(self, bias: np.ndarray):
         super().__init__()
         self.parameters = [bias]
@@ -116,6 +211,8 @@ class Sigmoid(MathematicalFunc):
 
 
 class WeightMultiplication(MathematicalFunc):
+    """Fundamental operation multiplying a weight matrix to the input."""
+
     def __init__(self, weight: np.ndarray):
         super().__init__()
         self.parameters = [weight]
@@ -129,6 +226,8 @@ class WeightMultiplication(MathematicalFunc):
 
 
 class SVMLossVectorized(Loss):
+    """Multiclass support vector machine loss."""
+
     def __init__(self, margin: float = 1):
         self.margin = margin
         self.x = None
@@ -140,13 +239,10 @@ class SVMLossVectorized(Loss):
         y are the indices of the targets
         l(X,Y) = sum(max(0, X-Y+m)) / len(X)
         """
-        from time import perf_counter
         self.x = x
-
         # self.y = np.array([[row[idx]] for row, idx in zip(x, y)])
         # - margin to compensate for the loss of the true prediction wich is max(0, x - x + 1) and  adds 1 to the loss.
         # return np.sum(np.maximum(np.zeros_like(self.x), (self.x - self.y + self.margin)))/len(self.x)-self.margin
-
         # The following code is faster, than the one in the comment!
         self.y = y
         losses = []
@@ -154,7 +250,7 @@ class SVMLossVectorized(Loss):
             penalty = np.maximum(0, score - score[target] + self.margin)
             penalty[target] = 0
             losses.append(penalty.sum())
-        return np.array(losses).sum()/self.x.size
+        return np.array(losses).sum() / self.x.size
 
     def backward(self) -> np.ndarray:
         """
@@ -201,6 +297,8 @@ class SVMLossVectorized(Loss):
 
 
 class MSE(Loss):
+    """Mean squared error loss."""
+
     def __init__(self):
         self.x = None
         self.y = None
@@ -227,21 +325,22 @@ class MSE(Loss):
 
 
 class LinearLayer(Layer):
+    """Weight multiplication and bias addition."""
+
     def __init__(self, num_pixels: int = 3072, num_classes: int = 10, weight_init: float = 1.):
         super().__init__()
-        self.parameters = [np.random.uniform(-weight_init, weight_init, (num_pixels, num_classes)),
-                           np.random.uniform(-weight_init, weight_init, (num_classes,))]
-        self.operations = [WeightMultiplication(weight=self.parameters[0]), BiasAddition(bias=self.parameters[1])]
+        self.parameters: list[np.ndarray] = [np.random.uniform(-weight_init, weight_init, (num_pixels, num_classes)),
+                                             np.random.uniform(-weight_init, weight_init, (num_classes,))]
+        self.operations: list[MathematicalFunc] = [WeightMultiplication(weight=self.parameters[0]),
+                                                   BiasAddition(bias=self.parameters[1])]
 
 
-class SigmoidLayer(Layer):
-    def __init__(self, num_pixels: int = 3072, num_classes: int = 10):
-        super().__init__()
-        self.parameters = [np.random.uniform(-1, 1, (num_pixels, num_classes)),
-                           np.random.uniform(-1, 1, (num_classes,))]
-        self.operations = [WeightMultiplication(weight=self.parameters[0]),
-                           BiasAddition(bias=self.parameters[1]),
-                           Sigmoid()]
+class SigmoidLayer(LinearLayer):
+    """Linear layer with sigmoid activation function."""
+
+    def __init__(self, num_pixels: int = 3072, num_classes: int = 10, weight_init: float = 1.):
+        super().__init__(num_pixels=num_pixels, num_classes=num_classes, weight_init=weight_init)
+        self.operations.append(Sigmoid())
 
 
 class StochasticGradientDecent(Optimizer):
