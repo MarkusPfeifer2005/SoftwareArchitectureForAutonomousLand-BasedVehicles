@@ -3,3 +3,4 @@ venv
 __pycache__/
 model_parameters/
 datasets/
+config.json

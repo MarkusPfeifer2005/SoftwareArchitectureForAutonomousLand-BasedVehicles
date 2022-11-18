@@ -1,9 +1,10 @@
 #!/usr/bin/env python
-
 import numpy as np
 import pickle
 import os
 import matplotlib.pyplot as plt
+
+from main import Config
 
 
 class Cifar10Dataset:
@@ -16,12 +17,12 @@ class Cifar10Dataset:
             data: numpy.ndarray shape=(10000, 3072)
             filenames: list[bytes]
     """
-    def __init__(self, batches: slice = slice(None, None, None), root: str = "datasets/cifar-10-batches-py"):
+    def __init__(self, batches: slice = slice(None, None, None), root: str = Config()["cifar-10-batches-py"]):
         self._root = root
         self.batches = batches
 
-        with open(os.path.join(root, "batches.meta"), "rb") as f:
-            self.labels = pickle.load(f, encoding="bytes")[b'label_names']
+        with open(os.path.join(root, "batches.meta"), "rb") as file:
+            self.labels = pickle.load(file, encoding="bytes")[b"label_names"]
 
     def __iter__(self):
         """Yields content of batch (see docstring of MyDataset)."""
@@ -83,7 +84,7 @@ def main():
     model: ManhattanModel = ManhattanModel()
 
     train(model, train_set)
-    evaluate(model, test_set, show=False)
+    evaluate(model, test_set, show=True)
 
 
 if __name__ == "__main__":
