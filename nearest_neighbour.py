@@ -84,7 +84,7 @@ def main():
     model: ManhattanModel = ManhattanModel()
 
     train(model, train_set)
-    evaluate(model, test_set, show=True)
+    evaluate(model, test_set, show=True, normalize=True)
 
 
 if __name__ == "__main__":
