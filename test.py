@@ -3,10 +3,12 @@ import unittest
 import os
 import shutil
 import numpy as np
-from nearest_neighbour import Cifar10Dataset, ManhattanModel, train, evaluate
-from ml_lib import SVMLossVectorized, WeightMultiplication, BiasAddition, SigmoidLayer,\
+
+from init import Config
+from benchmark.nearest_neighbour import Cifar10Dataset, ManhattanModel, train, evaluate
+from mlib.scratch import SVMLossVectorized, WeightMultiplication, BiasAddition, SigmoidLayer,\
     LinearLayer, MathematicalFunc, Model, StochasticGradientDecent, Layer, MSE
-from linear_classification import ExperimentalModel, LinearClassifier
+from benchmark.linear_classification import ExperimentalModel, LinearClassifier
 
 
 def gradient_check(m_func: MathematicalFunc, x: np.ndarray, d: float = 1e-4) -> list:
@@ -46,7 +48,8 @@ def gradient_check_model(model: Model, x: np.ndarray, d: float = 1e-4) -> list:
 
 class TestMyDataset(unittest.TestCase):
     def setUp(self):
-        self.dataset = Cifar10Dataset()
+        config = Config(root="config.json")
+        self.dataset = Cifar10Dataset(config["cifar"])
 
     def test_num_classes(self):
         self.assertEqual(self.dataset.num_classes, 10)
@@ -61,7 +64,8 @@ class TestMyDataset(unittest.TestCase):
 
 class TestTrain(unittest.TestCase):
     def test_train(self):
-        train_dataset = Cifar10Dataset()
+        config = Config(root="config.json")
+        train_dataset = Cifar10Dataset(root=config["cifar"])
         model = ManhattanModel()
         train(model=model, dataset=train_dataset)
 
@@ -77,8 +81,9 @@ class TestTrain(unittest.TestCase):
 
 class TestManhattanModel(unittest.TestCase):
     def test___call__(self):
+        config = Config(root="config.json")
         model: ManhattanModel = ManhattanModel()
-        dataset: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 1))
+        dataset: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 1), root=config["cifar"])
         train(model, dataset)
 
         for batch in dataset:
@@ -91,8 +96,9 @@ class TestManhattanModel(unittest.TestCase):
 
 class TestEvaluate(unittest.TestCase):
     def test_evaluate(self):
+        config = Config(root="config.json")
         model = ManhattanModel()
-        dataset = Cifar10Dataset(batches=slice(0, 1))
+        dataset = Cifar10Dataset(batches=slice(0, 1), root=config["cifar"])
         train(model, dataset)
         self.assertEqual(evaluate(model, dataset, images=slice(0, 60)), 100.00)
 
@@ -118,7 +124,7 @@ class TestSVMLossVectorized(unittest.TestCase):
             [2.2, 2.5, -3.1]
         ])
         targets = [0, 1, 2]
-        losses = self.criterion.forward(x=scores, y=targets)
+        self.criterion.forward(x=scores, y=targets)  # calculates losses
         grads = self.criterion.backward()
 
         self.assertEqual(scores.shape, grads.shape)
@@ -146,7 +152,7 @@ class TestWeightMultiplication(unittest.TestCase):
         x = np.array([[.1, .5],
                       [-.3, .8]])
         f = WeightMultiplication(w)
-        s = f.forward(x)
+        f.forward(x)  # calculates scores
         dx, dw = f.backward(np.array([[.44], [.52]]))
         dw = dw[0]
 
@@ -274,7 +280,8 @@ class TestModel(unittest.TestCase):
             self.assertTrue(os.path.isfile(os.path.join(self.test_dir_name, f"{model.file_prefix}{0}")))
 
     def test_load(self):
-        evaluation_set: Cifar10Dataset = Cifar10Dataset(batches=slice(4, 5))
+        config = Config(root="config.json")
+        evaluation_set: Cifar10Dataset = Cifar10Dataset(batches=slice(4, 5), root=config["cifar"])
         for model in self.models:
             accuracy1 = evaluate(model, evaluation_set)
             model.save(path=self.test_dir_name, epoch=0)
@@ -395,7 +402,7 @@ class TestMSE(unittest.TestCase):
         y = np.array([[1.], [4.]])
 
         l = MSE()
-        loss = l(x, y)
+        l(x, y)  # calculates loss
         dldx = l.backward()
 
         self.assertEqual([[0.], [-2.]], dldx.tolist())

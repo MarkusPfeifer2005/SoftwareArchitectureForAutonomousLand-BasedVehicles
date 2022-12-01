@@ -5,9 +5,10 @@ import numpy as np
 
 from nearest_neighbour import Cifar10Dataset
 from nearest_neighbour import evaluate as evaluate1
-from ml_lib import SVMLossVectorized, StochasticGradientDecent
+from mlib.scratch import SVMLossVectorized, StochasticGradientDecent
 from linear_classification import LinearClassifier, ExperimentalModel, SigmoidModel
 from torch_linear_classification import TorchLinearClassifier, TorchExperimentalModel, TorchSigmoidModel
+from init import Config
 
 import torch
 import torch.nn as nn
@@ -64,8 +65,9 @@ def train(models: list, model_class: str, dataset: Cifar10Dataset, criteria: lis
 
 
 def main():
-    train_set: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 1))
-    evaluation_set: Cifar10Dataset = Cifar10Dataset(batches=slice(4, 5))
+    config = Config("../config.json")
+    train_set: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 1), root=config["cifar"])
+    evaluation_set: Cifar10Dataset = Cifar10Dataset(batches=slice(4, 5), root=config["cifar"])
     epochs = int(1e1)
 
     # define models

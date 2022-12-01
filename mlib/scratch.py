@@ -111,7 +111,10 @@ class Model:
     def load(self, path: str) -> int:
         """Loads weights and bias from file.
 
-        :param path: Path to the desired file.
+        The entire load/save interface is based on pickle.
+
+        :param path: Path to the directory holding parameter files.
+        :return epochs: int holding the number of epochs, that the model was already trained on.
         """
 
         epochs = [int(file.replace(self.file_prefix, '')) for file in os.listdir(path) if self.file_prefix in file]

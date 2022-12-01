@@ -1,8 +1,10 @@
 #!/usr/bin/env python
-from nearest_neighbour import Cifar10Dataset, evaluate
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from ml_lib import SVMLossVectorized, LinearLayer, SigmoidLayer, Model, StochasticGradientDecent
+
+from benchmark.nearest_neighbour import Cifar10Dataset, evaluate
+from mlib.scratch import SVMLossVectorized, LinearLayer, SigmoidLayer, Model, StochasticGradientDecent
+from init import Config
 
 
 class LinearClassifier(Model):
@@ -49,20 +51,27 @@ def train(model: Model, dataset: Cifar10Dataset, criterion, optimizer, epochs: i
 
 
 def main():
-    train_set: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 4))
-    evaluation_set: Cifar10Dataset = Cifar10Dataset(batches=slice(4, 5))
-    test_set: Cifar10Dataset = Cifar10Dataset(batches=slice(5, 6))
-    model = SigmoidModel()
-    criterion = SVMLossVectorized()
-    optimizer = StochasticGradientDecent(model_layers=model.layers, lr=1e-3)
+    config = Config("../config.json")
 
-    epochs = int(1e1)
-    comp_epochs = 0  # model.load("model_parameters")
+    train_set: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 4), root=config["cifar"])
+    evaluation_set: Cifar10Dataset = Cifar10Dataset(batches=slice(4, 5), root=config["cifar"])
+    test_set: Cifar10Dataset = Cifar10Dataset(batches=slice(5, 6), root=config["cifar"])
+    model = LinearClassifier()
+    criterion = SVMLossVectorized()
+    optimizer = StochasticGradientDecent(model_layers=model.layers, lr=1e-2)
+
+    epochs = int(1e2)
+    if input("Do you want to try and load model parameters? (y/n): ").lower() == 'y':
+        comp_epochs = model.load(config["model-parameters"])
+        print(f"Loaded model parameters pretrained on {comp_epochs} epochs.")
+    else:
+        comp_epochs = 0
+        print("Did not load models.")
     train(model, train_set, criterion, optimizer, epochs=epochs, completed_epochs=comp_epochs)
-    model.save(path="model_parameters", epoch=epochs+comp_epochs)
+    model.save(path=config["model-parameters"], epoch=epochs + comp_epochs)
     evaluate(model, train_set, normalize=True)
     evaluate(model, evaluation_set, normalize=True)
-    # evaluate(model, test_set)
+    evaluate(model, test_set, normalize=True)
 
 
 if __name__ == "__main__":

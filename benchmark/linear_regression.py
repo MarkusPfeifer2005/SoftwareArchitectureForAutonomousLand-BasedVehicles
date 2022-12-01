@@ -2,7 +2,8 @@
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
-from ml_lib import Model,  LinearLayer, StochasticGradientDecent, MSE
+
+from mlib.scratch import Model,  LinearLayer, StochasticGradientDecent, MSE
 
 
 class LinerRegression(Model):

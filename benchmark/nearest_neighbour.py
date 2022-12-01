@@ -4,12 +4,13 @@ import pickle
 import os
 import matplotlib.pyplot as plt
 
-from main import Config
+from init import Config
 
 
 class Cifar10Dataset:
-    """
-    http://www.cs.toronto.edu/~kriz/cifar.html
+    """For detailed information or download visit: http://www.cs.toronto.edu/~kriz/cifar.html
+
+    structure:
     dataset
         batch
             batch_label: str
@@ -17,14 +18,19 @@ class Cifar10Dataset:
             data: numpy.ndarray shape=(10000, 3072)
             filenames: list[bytes]
     """
-    def __init__(self, batches: slice = slice(None, None, None), root: str = Config()["cifar-10-batches-py"]):
+    def __init__(self, root: str, batches: slice = slice(None, None, None)):
+        """
+
+        :param root: str to the cifar directory folder.
+        :param batches: slice, per default the entire dataset is used.
+        """
         self._root = root
         self.batches = batches
 
         with open(os.path.join(root, "batches.meta"), "rb") as file:
             self.labels = pickle.load(file, encoding="bytes")[b"label_names"]
 
-    def __iter__(self):
+    def __iter__(self) -> object:
         """Yields content of batch (see docstring of MyDataset)."""
         for file in [file for file in os.listdir(self._root) if "_batch" in file][self.batches]:
             with open(os.path.join(self._root, file), "rb") as batch:
@@ -54,7 +60,9 @@ def train(model: ManhattanModel, dataset: Cifar10Dataset):
 
 
 def evaluate(model, dataset: Cifar10Dataset,
-             show: bool = False, normalize: bool = False, images: slice = slice(None, None, None)) -> float:
+             show: bool = False,
+             normalize: bool = False,
+             images: slice = slice(None, None, None)) -> float:
     total = correct = 0
     for batch in dataset:
         for img, lbl in zip(batch[b"data"][images], batch[b"labels"][images]):
@@ -79,8 +87,9 @@ def evaluate(model, dataset: Cifar10Dataset,
 
 
 def main():
-    train_set: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 5))
-    test_set: Cifar10Dataset = Cifar10Dataset(batches=slice(5, 6))
+    config = Config("../config.json")
+    train_set: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 5), root=config["cifar"])
+    test_set: Cifar10Dataset = Cifar10Dataset(batches=slice(5, 6), root=config["cifar"])
     model: ManhattanModel = ManhattanModel()
 
     train(model, train_set)

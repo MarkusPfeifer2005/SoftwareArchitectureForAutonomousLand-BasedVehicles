@@ -1,12 +1,18 @@
 #!/usr/bin/env python
-from nearest_neighbour import Cifar10Dataset
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+
 import torch
 import torch.nn as nn
 
+from benchmark.nearest_neighbour import Cifar10Dataset
+from init import Config
 
-def evaluate(model, dataset: Cifar10Dataset,  normalize: bool = False, images: slice = slice(None, None, None)) -> float:
+
+def evaluate(model,
+             dataset: Cifar10Dataset,
+             normalize: bool = False,
+             images: slice = slice(None, None, None)) -> float:
     total = correct = 0
     for batch in dataset:
         for img, lbl in zip(batch[b"data"][images], batch[b"labels"][images]):
@@ -85,22 +91,22 @@ def train(model: nn.Module, dataset: Cifar10Dataset, criterion, optimizer, epoch
 
 
 def main():
-    train_set: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 1))
-    evaluation_set: Cifar10Dataset = Cifar10Dataset(batches=slice(4, 5))
-    test_set: Cifar10Dataset = Cifar10Dataset(batches=slice(5, 6))
-    model = TorchLinearClassifier().double()
-    # model = TorchExperimentalModel()
-    # model = TorchSigmoidModel()
-    parameters = [param.detach().numpy() for param in list(model.parameters())]
-    criterion = nn.MultiMarginLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
+    config = Config("../config.json")
+    train_set: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 1), root=config["cifar"])
+    evaluation_set: Cifar10Dataset = Cifar10Dataset(batches=slice(4, 5), root=config["cifar"])
+    test_set: Cifar10Dataset = Cifar10Dataset(batches=slice(5, 6), root=config["cifar"])
+    models = [TorchLinearClassifier().double(), TorchExperimentalModel().double(), TorchSigmoidModel().double()]
 
-    epochs = int(1e2)
-    comp_epochs = 0
-    train(model, train_set, criterion, optimizer, epochs=epochs, completed_epochs=comp_epochs)
-    evaluate(model, train_set)
-    evaluate(model, evaluation_set)
-    # evaluate(model, test_set)
+    for model in models:
+        criterion = nn.MultiMarginLoss()
+        optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
+
+        epochs = int(1e2)
+        comp_epochs = 0
+        train(model, train_set, criterion, optimizer, epochs=epochs, completed_epochs=comp_epochs)
+        evaluate(model, train_set)
+        evaluate(model, evaluation_set)
+        evaluate(model, test_set)
 
 
 if __name__ == "__main__":
