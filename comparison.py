@@ -14,10 +14,10 @@ import torch.nn as nn
 from torch_linear_classification import evaluate as evaluate2
 
 
-def train(models: list, dataset: Cifar10Dataset, criteria: list, optimizers: list, epochs: int,
+def train(models: list, model_class: str, dataset: Cifar10Dataset, criteria: list, optimizers: list, epochs: int,
           completed_epochs: int = 0, normalize: bool = False):
     avg_losses0, avg_losses1 = [], []
-    for _ in tqdm(range(completed_epochs, completed_epochs + epochs), desc="Training the models"):
+    for _ in tqdm(range(completed_epochs, completed_epochs + epochs), desc=f"Training the {model_class} models"):
         batch_losses0, batch_losses1 = [], []
         for batch in dataset:
 
@@ -52,9 +52,10 @@ def train(models: list, dataset: Cifar10Dataset, criteria: list, optimizers: lis
 
             batch_losses0.append(m_loss)
             batch_losses1.append(t_loss.item())
-        avg_losses0.append(sum(batch_losses0)/len(batch_losses0))
-        avg_losses1.append(sum(batch_losses1)/len(batch_losses1))
+        avg_losses0.append(sum(batch_losses0) / len(batch_losses0))
+        avg_losses1.append(sum(batch_losses1) / len(batch_losses1))
 
+    plt.title(label=model_class)
     plt.plot(avg_losses0)
     plt.plot(avg_losses1)
     plt.ylabel("Average Losses")
@@ -65,34 +66,43 @@ def train(models: list, dataset: Cifar10Dataset, criteria: list, optimizers: lis
 def main():
     train_set: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 1))
     evaluation_set: Cifar10Dataset = Cifar10Dataset(batches=slice(4, 5))
-    epochs = int(1e2)
+    epochs = int(1e1)
 
     # define models
-    my_model = SigmoidModel()
-    torch_model = TorchSigmoidModel().double()
-    # equalize parameters
-    torch_model.linear1.weight.data = torch.from_numpy(my_model.layers[0].parameters[0].T.copy())
-    torch_model.linear1.bias.data = torch.from_numpy(my_model.layers[0].parameters[1].copy())
-    torch_model.linear2.weight.data = torch.from_numpy(my_model.layers[1].parameters[0].T.copy())
-    torch_model.linear2.bias.data = torch.from_numpy(my_model.layers[1].parameters[1].copy())
+    models = {
+        "linear": (LinearClassifier(), TorchLinearClassifier()),
+        "experimental": (ExperimentalModel(), TorchExperimentalModel()),
+        "sigmoid": (SigmoidModel(), TorchSigmoidModel().double())  # parameters with datatype double
+              }
 
-    # define criteria
-    my_criterion = SVMLossVectorized()
-    torch_criterion = nn.MultiMarginLoss()
+    for key in models:
+        my_model = models[key][0]
+        torch_model = models[key][1]
 
-    # define optimizers
-    my_optimizer = StochasticGradientDecent(model_layers=my_model.layers, lr=1e-3)
-    torch_optimizer = torch.optim.SGD(torch_model.parameters(), lr=1e-3)
+        # equalize parameters
+        torch_model.linear1.weight.data = torch.from_numpy(my_model.layers[0].parameters[0].T.copy())
+        torch_model.linear1.bias.data = torch.from_numpy(my_model.layers[0].parameters[1].copy())
+        if len(my_model.layers) >= 2:
+            torch_model.linear2.weight.data = torch.from_numpy(my_model.layers[1].parameters[0].T.copy())
+            torch_model.linear2.bias.data = torch.from_numpy(my_model.layers[1].parameters[1].copy())
 
-    # train the models
-    train(models=[my_model, torch_model], dataset=train_set, criteria=[my_criterion, torch_criterion],
-          optimizers=[my_optimizer, torch_optimizer], epochs=epochs)
+        # define criteria
+        my_criterion = SVMLossVectorized()
+        torch_criterion = nn.MultiMarginLoss()
 
-    # evaluate_models:
-    evaluate1(my_model, train_set)
-    evaluate1(my_model, evaluation_set)
-    evaluate2(torch_model, train_set)
-    evaluate2(torch_model, evaluation_set)
+        # define optimizers
+        my_optimizer = StochasticGradientDecent(model_layers=my_model.layers, lr=1e-3)
+        torch_optimizer = torch.optim.SGD(torch_model.parameters(), lr=1e-3)
+
+        # train the models
+        train(models=[my_model, torch_model], dataset=train_set, criteria=[my_criterion, torch_criterion],
+              optimizers=[my_optimizer, torch_optimizer], epochs=epochs, model_class=key)
+
+        # evaluate_models:
+        evaluate1(my_model, train_set)
+        evaluate1(my_model, evaluation_set)
+        evaluate2(torch_model, train_set)
+        evaluate2(torch_model, evaluation_set)
 
 
 if __name__ == "__main__":
