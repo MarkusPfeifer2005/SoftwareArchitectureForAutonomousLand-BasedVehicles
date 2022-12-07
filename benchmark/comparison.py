@@ -41,12 +41,12 @@ def train(models: list, model_class: str, dataset: Cifar10Dataset, criteria: lis
                 m_grads += reversed(parameter_grads)
             m_grads.reverse()
 
-            optimizers[1].zero_grad()
             t_loss.backward()
             t_grads = []
             for param in models[1].parameters():
                 t_grads.append(param.grad.numpy())
             optimizers[1].step()
+            optimizers[1].zero_grad()
 
             # The following assertion does not work due to torch transposing weights!
             # assert [np.round(g, 6).tolist() for g in m_grads] == [np.round(g, 6).tolist() for g in t_grads]
