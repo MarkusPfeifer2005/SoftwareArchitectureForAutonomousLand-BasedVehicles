@@ -3,12 +3,14 @@ import unittest
 import os
 import shutil
 import numpy as np
+import torch
 
 from init import Config
 from benchmark.nearest_neighbour import Cifar10Dataset, ManhattanModel, train, evaluate
 from mlib.scratch import SVMLossVectorized, WeightMultiplication, BiasAddition, SigmoidLayer,\
     LinearLayer, MathematicalFunc, Model, StochasticGradientDecent, Layer, MSE
 from benchmark.linear_classification import ExperimentalModel, LinearClassifier
+from mlib.matrix import Matrix
 
 
 def gradient_check(m_func: MathematicalFunc, x: np.ndarray, d: float = 1e-4) -> list:
@@ -54,7 +56,7 @@ class TestMyDataset(unittest.TestCase):
     def test_num_classes(self):
         self.assertEqual(self.dataset.num_classes, 10)
 
-    def test___iter__(self):
+    def test_iter(self):
         for batch in self.dataset:
             self.assertIsInstance(batch[b"batch_label"], bytes)
             self.assertIsInstance(batch[b"labels"], list)
@@ -80,7 +82,7 @@ class TestTrain(unittest.TestCase):
 
 
 class TestManhattanModel(unittest.TestCase):
-    def test___call__(self):
+    def test_call(self):
         config = Config(root="config.json")
         model: ManhattanModel = ManhattanModel()
         dataset: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 1), root=config["cifar"])
@@ -406,6 +408,96 @@ class TestMSE(unittest.TestCase):
         dldx = l.backward()
 
         self.assertEqual([[0.], [-2.]], dldx.tolist())
+
+
+class TestMatrix(unittest.TestCase):
+    def setUp(self) -> None:
+        self.a = np.random.random(size=(10, 10))
+        self.b = np.random.random(size=(10, 10))
+
+        self.c = Matrix(self.a)
+        self.d = Matrix(self.b)
+
+    def test_init(self):
+        a = np.random.random(size=(10, 10))
+        self.assertIsInstance(Matrix(a), Matrix)
+
+        a = [[i for i in range(10)], [float(i) for i in range(10)]]
+        self.assertIsInstance(Matrix(a), Matrix)
+
+        a = torch.rand(size=(10, 10))
+        self.assertIsInstance(Matrix(a), Matrix)
+
+        a = "mem"
+        self.assertRaises(TypeError, Matrix, a)
+
+    def test_toarray(self):
+        a = np.random.random(size=(10, 10))
+        b = Matrix(a)
+        self.assertEqual(a.tolist(), b.toarray().tolist())
+
+    def test_tolist(self):
+        a = np.random.random(size=(10, 10))
+        b = Matrix(a)
+        self.assertEqual(a.tolist(), b.tolist())
+
+    def test_add(self):
+        ab = self.a+self.b
+        cd = self.c+self.d
+        dc = self.d+self.c
+
+        self.assertIsInstance(cd, Matrix)
+        self.assertIsInstance(dc, Matrix)
+
+        self.assertEqual(ab.tolist(), cd.tolist())
+        self.assertEqual(ab.tolist(), dc.tolist())
+
+    def test_sub(self):
+        ab = self.a - self.b
+        ba = self.b - self.a
+        cd = self.c - self.d
+        dc = self.d - self.c
+
+        self.assertIsInstance(cd, Matrix)
+        self.assertIsInstance(dc, Matrix)
+
+        self.assertEqual(ab.tolist(), cd.tolist())
+        self.assertEqual(ba.tolist(), dc.tolist())
+
+    def test_mul(self):
+        ab = self.a + self.b
+        cd = self.c + self.d
+        dc = self.d + self.c
+
+        self.assertIsInstance(cd, Matrix)
+        self.assertIsInstance(dc, Matrix)
+
+        self.assertEqual(ab.tolist(), cd.tolist())
+        self.assertEqual(ab.tolist(), dc.tolist())
+
+    def test_div(self):
+        ab = self.a / self.b
+        ba = self.b / self.a
+        cd = self.c / self.d
+        dc = self.d / self.c
+
+        self.assertIsInstance(cd, Matrix)
+        self.assertIsInstance(dc, Matrix)
+
+        self.assertEqual(ab.tolist(), cd.tolist())
+        self.assertEqual(ba.tolist(), dc.tolist())
+
+    def test_pow(self):
+        q = pow(self.a, 2.)
+        p = pow(self.c, 2.)
+
+        self.assertIsInstance(p, Matrix)
+
+        self.assertEqual(q.tolist(), p.tolist())
+
+    def test_sum(self):
+        self.assertEqual(self.a.sum().tolist(), self.c.sum().tolist())
+
 
 
 if __name__ == "__main__":
