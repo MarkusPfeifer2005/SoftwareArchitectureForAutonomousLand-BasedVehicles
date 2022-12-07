@@ -82,8 +82,9 @@ class Model:
     training data.
     """
 
-    def __init__(self):
+    def __init__(self, name: str = None):
         self.file_prefix = "model"
+        self.name = name
         self.layers = []
 
     def forward(self, x: np.ndarray):

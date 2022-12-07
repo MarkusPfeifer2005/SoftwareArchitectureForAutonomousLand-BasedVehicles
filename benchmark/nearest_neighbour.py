@@ -18,14 +18,15 @@ class Cifar10Dataset:
             data: numpy.ndarray shape=(10000, 3072)
             filenames: list[bytes]
     """
-    def __init__(self, root: str, batches: slice = slice(None, None, None)):
+    def __init__(self, root: str, batches: slice = slice(None, None, None), name: str = None):
         """
-
         :param root: str to the cifar directory folder.
-        :param batches: slice, per default the entire dataset is used.
+        :param batches: slice; default uses the entire dataset.
+        :param name: str giving the dataset a descriptive name.
         """
         self._root = root
         self.batches = batches
+        self.name = name
 
         with open(os.path.join(root, "batches.meta"), "rb") as file:
             self.labels = pickle.load(file, encoding="bytes")[b"label_names"]

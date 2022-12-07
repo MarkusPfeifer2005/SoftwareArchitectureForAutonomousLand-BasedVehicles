@@ -1,6 +1,9 @@
 #!/usr/bin/env python
+import time
+
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from time import sleep
 
 import torch
 import torch.nn as nn
@@ -26,13 +29,20 @@ def evaluate(model,
             if prediction == target:
                 correct += 1
 
-    print(f"{correct} of {total} examples were correct resulting in an accuracy of {correct/total*100:.2f}%.")
+    print(f"{dataset.name+': ' if dataset.name else ''}{correct} of {total}"
+          f" examples were correct resulting in an accuracy of {correct/total*100:.2f}%.")
     return correct/total*100
 
 
-class TorchLinearClassifier(nn.Module):
-    def __init__(self, num_pixels: int = 3072, num_classes: int = 10):
+class ParentModel(nn.Module):
+    def __init__(self, name: str = None):
         super().__init__()
+        self.name = name
+
+
+class TorchLinearClassifier(ParentModel):
+    def __init__(self, num_pixels: int = 3072, num_classes: int = 10, name: str = None):
+        super().__init__(name=name)
         self.linear1 = nn.Linear(in_features=num_pixels, out_features=num_classes)
 
     def forward(self, x):
@@ -40,9 +50,9 @@ class TorchLinearClassifier(nn.Module):
         return x
 
 
-class TorchExperimentalModel(nn.Module):
-    def __init__(self, num_pixels: int = 3072, num_classes: int = 10):
-        super().__init__()
+class TorchExperimentalModel(ParentModel):
+    def __init__(self, num_pixels: int = 3072, num_classes: int = 10, name: str = None):
+        super().__init__(name=name)
         self.linear1 = nn.Linear(in_features=num_pixels, out_features=100)
         self.linear2 = nn.Linear(in_features=100, out_features=num_classes)
 
@@ -52,9 +62,9 @@ class TorchExperimentalModel(nn.Module):
         return x
 
 
-class TorchSigmoidModel(nn.Module):
-    def __init__(self, num_pixels: int = 3072, num_classes: int = 10):
-        super().__init__()
+class TorchSigmoidModel(ParentModel):
+    def __init__(self, num_pixels: int = 3072, num_classes: int = 10, name: str = None):
+        super().__init__(name=name)
         self.linear1 = nn.Linear(in_features=num_pixels, out_features=100)
         self.sigmoid = nn.Sigmoid()
         self.linear2 = nn.Linear(in_features=100, out_features=num_classes)
@@ -66,10 +76,16 @@ class TorchSigmoidModel(nn.Module):
         return x
 
 
-def train(model: nn.Module, dataset: Cifar10Dataset, criterion, optimizer, epochs: int, completed_epochs: int = 0,
-          normalize: bool = False):
+def train(model: ParentModel,
+          dataset: Cifar10Dataset,
+          criterion,
+          optimizer,
+          epochs: int,
+          completed_epochs: int = 0,
+          normalize: bool = False,
+          show_graphs: bool = True):
     avg_losses = []
-    for _ in tqdm(range(completed_epochs, completed_epochs + epochs), desc="Training the model"):
+    for _ in tqdm(range(completed_epochs, completed_epochs + epochs), desc=f"Training the model '{model.name}'"):
         batch_losses = []
         for batch in dataset:
             data = batch[b"data"].astype("float64") / 255 if normalize else batch[b"data"].astype("float64")
@@ -84,29 +100,38 @@ def train(model: nn.Module, dataset: Cifar10Dataset, criterion, optimizer, epoch
             batch_losses.append(loss.item())
         avg_losses.append(sum(batch_losses)/len(batch_losses))
 
-    plt.plot(avg_losses)
-    plt.ylabel("Average Losses")
-    plt.xlabel("Epochs")
-    plt.show()
+    if show_graphs:
+        plt.plot(avg_losses)
+        plt.title(f"Stats for Model '{model.name}'")
+        plt.ylabel("Average Losses")
+        plt.xlabel("Epochs")
+        plt.show()
 
 
 def main():
     config = Config("../config.json")
-    train_set: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 1), root=config["cifar"])
-    evaluation_set: Cifar10Dataset = Cifar10Dataset(batches=slice(4, 5), root=config["cifar"])
-    test_set: Cifar10Dataset = Cifar10Dataset(batches=slice(5, 6), root=config["cifar"])
-    models = [TorchLinearClassifier().double(), TorchExperimentalModel().double(), TorchSigmoidModel().double()]
+
+    datasets: list = [
+        Cifar10Dataset(batches=slice(0, 1), root=config["cifar"], name="train"),
+        Cifar10Dataset(batches=slice(4, 5), root=config["cifar"], name="eval"),
+        Cifar10Dataset(batches=slice(5, 6), root=config["cifar"], name="test"),
+        Cifar10Dataset(root=config["cifar"], name="total")
+    ]
+
+    models: list = [
+        TorchLinearClassifier(name="linear").double(),
+        TorchExperimentalModel(name="experimental").double(),
+        TorchSigmoidModel(name="sigmoid").double()
+    ]
 
     for model in models:
         criterion = nn.MultiMarginLoss()
         optimizer = torch.optim.SGD(model.parameters(), lr=1e-3)
 
-        epochs = int(1e2)
-        comp_epochs = 0
-        train(model, train_set, criterion, optimizer, epochs=epochs, completed_epochs=comp_epochs)
-        evaluate(model, train_set)
-        evaluate(model, evaluation_set)
-        evaluate(model, test_set)
+        train(model, datasets[0], criterion, optimizer, epochs=int(1e2), show_graphs=False)
+        for dataset in datasets:
+            evaluate(model, dataset)
+        sleep(.5)
 
 
 if __name__ == "__main__":
