@@ -7,12 +7,12 @@ from nearest_neighbour import Cifar10Dataset
 from nearest_neighbour import evaluate as evaluate1
 from mlib.scratch import SVMLossVectorized, StochasticGradientDecent
 from linear_classification import LinearClassifier, ExperimentalModel, SigmoidModel
-from torch_linear_classification import TorchLinearClassifier, TorchExperimentalModel, TorchSigmoidModel
+from torch_classification import TorchLinearClassifier, TorchExperimentalModel, TorchSigmoidModel
 from init import Config
 
 import torch
 import torch.nn as nn
-from torch_linear_classification import evaluate as evaluate2
+from torch_classification import evaluate as evaluate2
 
 
 def train(models: list, model_class: str, dataset: Cifar10Dataset, criteria: list, optimizers: list, epochs: int,
@@ -93,8 +93,8 @@ def main():
         torch_criterion = nn.MultiMarginLoss()
 
         # define optimizers
-        my_optimizer = StochasticGradientDecent(model_layers=my_model.layers, lr=1e-3)
-        torch_optimizer = torch.optim.SGD(torch_model.parameters(), lr=1e-3)
+        my_optimizer = StochasticGradientDecent(model_layers=my_model.layers, lr=1e-3, momentum=.9)
+        torch_optimizer = torch.optim.SGD(torch_model.parameters(), lr=1e-3, momentum=.9)
 
         # train the models
         train(models=[my_model, torch_model], dataset=train_set, criteria=[my_criterion, torch_criterion],

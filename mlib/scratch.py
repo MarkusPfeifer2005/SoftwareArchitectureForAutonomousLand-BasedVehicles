@@ -349,11 +349,19 @@ class SigmoidLayer(LinearLayer):
 
 
 class StochasticGradientDecent(Optimizer):
-    def __init__(self, model_layers: list, lr: float):
+    def __init__(self, model_layers: list, lr: float, momentum: float = None):
         super().__init__(model_layers, lr)
+        self.momentum = momentum
+        if self.momentum:
+            self.hist = [[np.zeros_like(param) for param in layer.parameters] for layer in reversed(self.model_layers)]
 
     def step(self, grad: np.ndarray):
-        for layer in reversed(self.model_layers):
+        for l_idx, layer in enumerate(reversed(self.model_layers)):
             grad, parameter_grads = layer.backward(grad)
-            for p_grad, param in zip(parameter_grads, layer.parameters):
-                param -= p_grad * self.lr
+            for p_idx, (p_grad, param) in enumerate(zip(parameter_grads, layer.parameters)):
+                if self.momentum:
+                    delta = p_grad + self.momentum * self.hist[l_idx][p_idx]
+                    self.hist[l_idx][p_idx] = delta
+                    param -= delta * self.lr
+                else:
+                    param -= p_grad * self.lr
