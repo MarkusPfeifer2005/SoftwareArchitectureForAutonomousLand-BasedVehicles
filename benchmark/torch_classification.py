@@ -1,53 +1,13 @@
 #!/usr/bin/env python
-import time
-
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from time import sleep
-import os
-import pickle
 
 import torch
 import torch.nn as nn
+import torchvision
+import torch.utils.data
 
-from benchmark.nearest_neighbour import Cifar10Dataset
 from init import Config
-
-
-class TorchCifar(Cifar10Dataset):
-    def __init__(self, root: str, batches: slice = slice(None, None, None), name: str = None, device: str = "cpu"):
-        super().__init__(root=root, batches=batches, name=name)
-        self.device = device
-
-    def __iter__(self) -> torch.Tensor:
-        """Yields content of batch (see docstring of MyDataset)."""
-        for file in [file for file in os.listdir(self._root) if "_batch" in file][self.batches]:
-            with open(os.path.join(self._root, file), "rb") as batch:
-                yield torch.from_numpy(pickle.load(batch, encoding="bytes")).to(self.device)
-
-
-def evaluate(model,
-             dataset: Cifar10Dataset,
-             normalize: bool = False,
-             images: slice = slice(None, None, None),
-             device: str = "cpu") -> float:
-    total = correct = 0
-    model.eval()
-    for batch in dataset:
-        for img, lbl in zip(batch[b"data"][images], batch[b"labels"][images]):
-            img = img.astype("float64") / 255 if normalize else img.astype("float64")
-            img = torch.from_numpy(img).to(device)
-            target = dataset.labels[lbl].decode()
-            scores = model(img).argmax().item()
-            prediction = dataset.labels[scores].decode()
-
-            total += 1
-            if prediction == target:
-                correct += 1
-
-    print(f"{dataset.name+': ' if dataset.name else ''}{correct} of {total}"
-          f" examples were correct resulting in an accuracy of {correct/total*100:.2f}%.")
-    return correct/total*100
 
 
 class ParentModel(nn.Module):
@@ -92,25 +52,37 @@ class TorchSigmoidModel(ParentModel):
         return x
 
 
-def train(model: ParentModel,
-          dataset: Cifar10Dataset,
-          criterion,
-          optimizer,
-          epochs: int,
-          completed_epochs: int = 0,
-          normalize: bool = False,
-          show_graphs: bool = True,
-          device: str = "cpu",
-          scheduler = None):
+class AlphaModel(ParentModel):
+    def __init__(self, num_pixels: int = 3072, num_classes: int = 10, name: str = None):
+        super().__init__(name=name)
+        self.operations = nn.Sequential(
+            nn.Linear(in_features=num_pixels, out_features=100),
+            nn.Tanh(),
+            nn.Linear(in_features=100, out_features=num_classes),
+        )
+
+    def forward(self, x):
+        return self.operations(x)
+
+
+def train_torch_mnist(model: ParentModel,
+                      dataloader: torch.utils.data.DataLoader,
+                      criterion,
+                      optimizer,
+                      epochs: int,
+                      completed_epochs: int = 0,
+                      show_graph: bool = True,
+                      device: str = "cpu",
+                      scheduler=None):
+    """For MNIST and torch only."""
     model.train()
     avg_losses = []
     for _ in tqdm(range(completed_epochs, completed_epochs + epochs), desc=f"Training '{model.name}'"):
         batch_losses = []
-        for batch in dataset:
-            data = batch[b"data"].astype("float64") / 255 if normalize else batch[b"data"].astype("float64")
-            targets = batch[b"labels"]
-            data, targets = torch.from_numpy(data).to(device), torch.tensor(targets).to(device)
-
+        for data, targets in dataloader:
+            data, targets = data.to(device), targets.to(device)
+            data = data.squeeze(dim=1)
+            data = data.flatten(start_dim=1)
             scores = model.forward(data)
             loss = criterion(scores, targets)
             optimizer.zero_grad()
@@ -118,9 +90,10 @@ def train(model: ParentModel,
             optimizer.step()
             batch_losses.append(loss.item())
         avg_losses.append(sum(batch_losses)/len(batch_losses))
-        scheduler.step()
+        if scheduler:
+            scheduler.step()
 
-    if show_graphs:
+    if show_graph:
         plt.plot(avg_losses)
         plt.title(f"Stats for Model '{model.name}'")
         plt.ylabel("Average Losses")
@@ -128,44 +101,53 @@ def train(model: ParentModel,
         plt.show()
 
 
+def evaluate_torch_mnist(model,
+             dataset,
+             device: str = "cpu") -> float:
+    """For MNIST and torch only."""
+    total = correct = 0
+    model.eval()
+    for data, targets in dataset:
+        data, targets = data.to(device), targets.to(device)
+        data = data.squeeze(dim=1)
+        data = data.flatten(start_dim=1)
+        for img, lbl in zip(data, targets):
+            scores = model(img).argmax().item()
+            total += 1
+            if scores == lbl:
+                correct += 1
+
+    print(f"{correct} of {total} examples were correct resulting in an accuracy of {correct/total*100:.2f}%.")
+    return correct/total*100
+
+
 def main():
+    """Testing the performance of the AlphaModel on the MNIST dataset."""
     config = Config("../config.json")
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    datasets: list = [
-        Cifar10Dataset(batches=slice(0, 1), root=config["cifar"], name="train"),
-        Cifar10Dataset(batches=slice(4, 5), root=config["cifar"], name="eval"),
-        Cifar10Dataset(batches=slice(5, 6), root=config["cifar"], name="test"),
-        Cifar10Dataset(root=config["cifar"], name="total")
-    ]
+    dataset = torchvision.datasets.MNIST(
+        root=config["mnist"],
+        download=True,
+        train=True,
+        transform=torchvision.transforms.ToTensor(),
+    )
+    train_set, test_set = torch.utils.data.random_split(dataset, [50000, 10000])
+    train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=32, shuffle=True)
+    test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=32, shuffle=True)
 
-    models: list = [
-        # TorchLinearClassifier(name="linear").double().to(device),
-        # TorchExperimentalModel(name="experimental").double().to(device),
-        TorchSigmoidModel(name="sigmoid").double().to(device)
-    ]
-
-    criteria: list = [
-        nn.MultiMarginLoss(),
-        nn.CrossEntropyLoss()
-    ]
-
-    for model in models:
-        criterion = criteria[1]
-        optimizer = torch.optim.SGD(model.parameters(), lr=1e-3, momentum=.9, weight_decay=.9)
-        scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=.5, total_iters=5)
-
-        train(model=model,
-              dataset=datasets[0],
-              criterion=criterion,
-              optimizer=optimizer,
-              scheduler=scheduler,
-              epochs=int(1e2),
-              show_graphs=False,
-              device=device)
-        for dataset in datasets:
-            evaluate(model, dataset, device=device)
-        sleep(.5)
+    model = AlphaModel(num_pixels=784, name="Alpha").to(device)
+    optimizer = torch.optim.SGD(model.parameters(), lr=.005, momentum=.75)
+    train_torch_mnist(
+        model=model,
+        dataloader=train_loader,
+        criterion=nn.CrossEntropyLoss(),
+        optimizer=optimizer,
+        epochs=10,
+        show_graph=True,
+        device=device,
+    )
+    evaluate_torch_mnist(model, test_loader, device=device)
 
 
 if __name__ == "__main__":

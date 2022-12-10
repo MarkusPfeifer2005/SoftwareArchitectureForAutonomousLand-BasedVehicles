@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from nearest_neighbour import Cifar10Dataset
-from nearest_neighbour import evaluate as evaluate1
+from nearest_neighbour import evaluate
 from mlib.scratch import SVMLossVectorized, StochasticGradientDecent
 from linear_classification import LinearClassifier, ExperimentalModel, SigmoidModel
 from torch_classification import TorchLinearClassifier, TorchExperimentalModel, TorchSigmoidModel
@@ -12,7 +12,6 @@ from init import Config
 
 import torch
 import torch.nn as nn
-from torch_classification import evaluate as evaluate2
 
 
 def train(models: list, model_class: str, dataset: Cifar10Dataset, criteria: list, optimizers: list, epochs: int,
@@ -21,7 +20,6 @@ def train(models: list, model_class: str, dataset: Cifar10Dataset, criteria: lis
     for _ in tqdm(range(completed_epochs, completed_epochs + epochs), desc=f"Training the {model_class} models"):
         batch_losses0, batch_losses1 = [], []
         for batch in dataset:
-
             data = batch[b"data"].astype("float64") / 255 if normalize else batch[b"data"].astype("float64")
             targets = batch[b"labels"]
 
@@ -64,11 +62,32 @@ def train(models: list, model_class: str, dataset: Cifar10Dataset, criteria: lis
     plt.show()
 
 
+def evaluate_torch_cifar(model,
+              dataset: Cifar10Dataset,
+              normalize: bool = False,
+              images: slice = slice(None, None, None)) -> float:
+    """For Cifar10 only."""
+    total = correct = 0
+    for batch in dataset:
+        for img, lbl in zip(batch[b"data"][images], batch[b"labels"][images]):
+            img = img.astype("float64") / 255 if normalize else img.astype("float64")
+            img = torch.from_numpy(img)
+            target = dataset.labels[lbl].decode()
+            scores = model(img).argmax().item()
+            prediction = dataset.labels[scores].decode()
+
+            total += 1
+            if prediction == target:
+                correct += 1
+
+    print(f"{correct} of {total} examples were correct resulting in an accuracy of {correct/total*100:.2f}%.")
+    return correct/total*100
+
 def main():
     config = Config("../config.json")
     train_set: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 1), root=config["cifar"])
     evaluation_set: Cifar10Dataset = Cifar10Dataset(batches=slice(4, 5), root=config["cifar"])
-    epochs = int(1e1)
+    epochs = int(100)
 
     # define models
     models = {
@@ -93,18 +112,18 @@ def main():
         torch_criterion = nn.MultiMarginLoss()
 
         # define optimizers
-        my_optimizer = StochasticGradientDecent(model_layers=my_model.layers, lr=1e-3, momentum=.9)
-        torch_optimizer = torch.optim.SGD(torch_model.parameters(), lr=1e-3, momentum=.9)
+        my_optimizer = StochasticGradientDecent(model_layers=my_model.layers, lr=.001, momentum=.5)
+        torch_optimizer = torch.optim.SGD(torch_model.parameters(), lr=.001, momentum=.5)
 
         # train the models
         train(models=[my_model, torch_model], dataset=train_set, criteria=[my_criterion, torch_criterion],
               optimizers=[my_optimizer, torch_optimizer], epochs=epochs, model_class=key)
 
         # evaluate_models:
-        evaluate1(my_model, train_set)
-        evaluate1(my_model, evaluation_set)
-        evaluate2(torch_model, train_set)
-        evaluate2(torch_model, evaluation_set)
+        evaluate(my_model, train_set)
+        evaluate(my_model, evaluation_set)
+        evaluate_torch_cifar(torch_model, train_set)
+        evaluate_torch_cifar(torch_model, evaluation_set)
 
 
 if __name__ == "__main__":
