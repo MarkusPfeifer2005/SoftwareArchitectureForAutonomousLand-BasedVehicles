@@ -6,8 +6,8 @@ import numpy as np
 from nearest_neighbour import Cifar10Dataset
 from nearest_neighbour import evaluate
 from mlib.scratch import SVMLossVectorized, StochasticGradientDecent
-from linear_classification import LinearClassifier, ExperimentalModel, SigmoidModel
-from torch_classification import TorchLinearClassifier, TorchExperimentalModel, TorchSigmoidModel
+from benchmark.classification.scratch_classification import LinearClassifier, ExperimentalModel, SigmoidModel
+from benchmark.classification.torch_classification import TorchLinearClassifier, TorchExperimentalModel, TorchSigmoidModel
 from init import Config
 
 import torch

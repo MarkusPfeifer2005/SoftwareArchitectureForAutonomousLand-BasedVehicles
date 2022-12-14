@@ -8,7 +8,7 @@ from init import Config
 from benchmark.nearest_neighbour import Cifar10Dataset, ManhattanModel, train, evaluate
 from mlib.scratch import SVMLossVectorized, WeightMultiplication, BiasAddition, SigmoidLayer,\
     LinearLayer, MathematicalFunc, Model, StochasticGradientDecent, Layer, MSE
-from benchmark.linear_classification import ExperimentalModel, LinearClassifier
+from benchmark.classification.scratch_classification import DoubleLinearClassifier, LinearClassifier
 
 
 def gradient_check(m_func: MathematicalFunc, x: np.ndarray, d: float = 1e-4) -> list:
@@ -241,7 +241,7 @@ class TestModel(unittest.TestCase):
         self.criterion = SVMLossVectorized()
         self.models = [
             LinearClassifier(),
-            ExperimentalModel()
+            DoubleLinearClassifier()
         ]
 
     def tearDown(self):

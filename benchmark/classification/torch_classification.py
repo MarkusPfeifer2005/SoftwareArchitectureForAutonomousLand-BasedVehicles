@@ -123,7 +123,7 @@ def evaluate_torch_mnist(model,
 
 def main():
     """Testing the performance of the AlphaModel on the MNIST dataset."""
-    config = Config("../config.json")
+    config = Config("config.json")
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     dataset = torchvision.datasets.MNIST(

@@ -110,7 +110,9 @@ class Model:
             pickle.dump(parameters, file)
 
     def load(self, path: str) -> int:
-        """Loads weights and bias from file.
+        """ERROR - Dependencies of params of layers and params of m-functions are not resolved! Models do not learn!
+
+        Loads weights and bias from file.
 
         The entire load/save interface is based on pickle.
 
@@ -118,14 +120,15 @@ class Model:
         :return epochs: int holding the number of epochs, that the model was already trained on.
         """
 
-        epochs = [int(file.replace(self.file_prefix, '')) for file in os.listdir(path) if self.file_prefix in file]
+        epochs = [int(file.replace(self.file_prefix, '')) for file in os.listdir(path)
+                  if file.startswith(self.file_prefix)]
         assert epochs != [], f"No files to load in {path}!"
         filename = os.path.join(path, f"{self.file_prefix}{str(max(epochs))}")
 
         with open(filename, "rb") as file:
-            parameters = pickle.load(file)
-        for layer, feature in zip(self.layers, parameters):
-            layer.parameters = parameters
+            loaded_parameters = pickle.load(file)
+        for layer, l_params in zip(self.layers, loaded_parameters):
+            layer.parameters = l_params
 
         print(f"Loaded file '{filename}'.")
         return max(epochs)
