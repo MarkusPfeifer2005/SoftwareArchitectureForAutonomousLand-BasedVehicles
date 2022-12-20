@@ -51,7 +51,7 @@ def train(model: Model, dataset: Cifar10Dataset, criterion, optimizer, epochs: i
 
 
 def main():
-    config = Config("config.json")
+    config = Config("../../config.json")
 
     train_set: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 4), root=config["cifar"])
     evaluation_set: Cifar10Dataset = Cifar10Dataset(batches=slice(4, 5), root=config["cifar"])
