@@ -147,7 +147,7 @@ def main():
         train=False,
         transform=torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),
-            torch.flatten
+            torch.flatten,
         ]),
     )
     train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=32, shuffle=True)
