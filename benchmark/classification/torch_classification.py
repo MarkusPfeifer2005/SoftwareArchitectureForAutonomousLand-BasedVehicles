@@ -19,7 +19,7 @@ class ParentModel(nn.Module):
 
     def save(self, path: str):
         """Saves model to file.
-        Extension '.pt'. The prefix 'lcd_cnn_' gets added to the name."""
+        Extension '.pt'."""
         path = os.path.join(path, f"{self.name}{self.file_extension}")
         torch.save(self, path)
         print(f"Successfully saved model to {path}.")

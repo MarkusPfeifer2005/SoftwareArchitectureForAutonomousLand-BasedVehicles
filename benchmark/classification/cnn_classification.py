@@ -62,7 +62,6 @@ def main():
         device=device,
     )
     evaluate(model, test_loader, device=device)
-    model.save(path=r"..\..\model-parameters")
 
 
 if __name__ == "__main__":

@@ -11,4 +11,4 @@ and performances of different algorithms of the torch library and my own
 implementation.
 
 
-Yet, there are no CNNs used.
+CNNs are used.
