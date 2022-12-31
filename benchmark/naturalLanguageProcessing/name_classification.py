@@ -3,6 +3,7 @@
 import os
 from random import shuffle
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 import torch
 from torch.utils.data import Dataset
@@ -40,11 +41,9 @@ class Names(Dataset):
         for data, target in self._data:
             yield torch.tensor(data).unsqueeze(1), torch.tensor(target)
 
-    def _encode_language(self, language: str) -> list[float]:
+    def _encode_language(self, language: str) -> list[int]:
         assert language in self._languages
-        encoding = [0. for _ in range(self.number_languages)]
-        encoding[self._languages.index(language)] = 1.
-        return encoding
+        return [self._languages.index(language)]
 
     def _encode_character(self, character: str) -> list[float]:
         assert character in self._characters
@@ -89,10 +88,10 @@ class Names(Dataset):
 
 
 class MyRNN(torch.nn.Module):
-    def __init__(self, input_size: int, hidden_size: int, output_size: int):
+    def __init__(self, input_size: int, hidden_size: int, output_size: int, device: str):
         super(MyRNN, self).__init__()
 
-        self._hidden = torch.zeros(size=(hidden_size, ))
+        self._hidden = torch.zeros(size=(hidden_size, )).to(device)  # Inconvenient, but works.
         self.linear1 = torch.nn.Linear(in_features=input_size, out_features=hidden_size)
         self.linear2 = torch.nn.Linear(in_features=hidden_size, out_features=hidden_size)
         self.linear3 = torch.nn.Linear(in_features=hidden_size, out_features=output_size)
@@ -109,19 +108,98 @@ class MyRNN(torch.nn.Module):
         return scores
 
 
-def train(data: Names, model, epochs: int):
-    data.randomize()
+class NameClassifier(torch.nn.Module):
+    def __init__(self, input_size: int, hidden_size: int, output_size: int, device: str):
+        super(NameClassifier, self).__init__()
+        self._hidden = torch.zeros(size=(1, hidden_size)).to(device)  # Inconvenient, but works.
+        self.rnn = torch.nn.RNN(input_size=input_size, hidden_size=hidden_size)
+        self.linear = torch.nn.Linear(in_features=hidden_size, out_features=output_size)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        self._hidden = torch.zeros_like(self._hidden)  # Reinitialize hidden for new sequence.
+
+        for character in x:
+            x, self._hidden = self.rnn(character, self._hidden)
+
+        x = self.linear(x)
+        return x
+
+
+def train(dataset: Names, model, epochs: int, criterion, optimizer, device: str = "cpu"):
+    model.train()
+    average_losses = []
     for _ in tqdm(range(epochs)):
-        for data, target in data:
-            scores = model(data)
-            print(data.shape, target.shape, scores.shape)
+        dataset.randomize()
+        epoch_losses = []
+        for data, target in dataset:
+            data, target = data.to(device), target.to(device)
+            scores = model.forward(data)
+            loss = criterion(scores, target)
+            epoch_losses.append(loss.item())
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        average_losses.append(sum(epoch_losses) / len(epoch_losses))
+
+    plt.plot(average_losses)
+    plt.title(f"Stats for Model:")
+    plt.ylabel("Average Losses")
+    plt.xlabel("Epochs")
+    plt.show()
+
+
+def evaluate(model,
+             dataset: Names,
+             device: str = "cpu") -> float:
+    """:return float: accuracy in %"""
+    total = correct = 0
+    model.eval()
+    dataset.randomize()
+    for data, target in dataset:
+        data, target = data.to(device), target.to(device)
+        scores = model(data).argmax().item()
+        total += 1
+        if scores == target:
+            correct += 1
+
+    print(f"{correct} of {total} examples were correct resulting in an accuracy of {correct/total*100:.2f}%.")
+    return correct/total*100
 
 
 def main():
     config = Config("../../config.json")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
     data = Names(root=config["names"])
-    rnn = MyRNN(input_size=data.number_characters, hidden_size=50, output_size=data.number_languages)
-    train(data=data, model=rnn, epochs=1)
+    epochs = 7
+
+    model1 = MyRNN(input_size=data.number_characters,
+                   hidden_size=50,
+                   output_size=data.number_languages,
+                   device=device).to(device)
+    train(dataset=data,
+          model=model1,
+          epochs=epochs,
+          criterion=torch.nn.CrossEntropyLoss(),
+          optimizer=torch.optim.SGD(model1.parameters(), lr=0.005),
+          device=device)
+    evaluate(dataset=data,
+             model=model1,
+             device=device)
+    model2 = NameClassifier(input_size=data.number_characters,
+                            hidden_size=50,
+                            output_size=data.number_languages,
+                            device=device).to(device)
+    train(dataset=data,
+          model=model2,
+          epochs=epochs,
+          criterion=torch.nn.CrossEntropyLoss(),
+          optimizer=torch.optim.SGD(model2.parameters(), lr=0.005),
+          device=device)
+    evaluate(dataset=data,
+             model=model2,
+             device=device)
 
 
 if __name__ == "__main__":
