@@ -11,6 +11,9 @@ from torch.utils.data import Dataset
 from init import Config
 
 
+device = "cuda" if torch.cuda.is_available() else "cpu"  # Global.
+
+
 class Names(Dataset):
     _file_extension = ".txt"
     _encoding = "utf-8"
@@ -88,7 +91,7 @@ class Names(Dataset):
 
 
 class MyRNN(torch.nn.Module):
-    def __init__(self, input_size: int, hidden_size: int, output_size: int, device: str):
+    def __init__(self, input_size: int, hidden_size: int, output_size: int):
         super(MyRNN, self).__init__()
 
         self._hidden = torch.zeros(size=(hidden_size, )).to(device)  # Inconvenient, but works.
@@ -101,7 +104,7 @@ class MyRNN(torch.nn.Module):
         """Takes an entire name."""
         self._hidden = torch.zeros_like(self._hidden)  # Reinitialize hidden for new sequence.
 
-        for character in name:
+        for character in name:  # Very slow!
             self._hidden = self.nonlinearity(self.linear1(character) + self.linear2(self._hidden))
 
         scores = self.linear3(self._hidden)
@@ -109,23 +112,21 @@ class MyRNN(torch.nn.Module):
 
 
 class NameClassifier(torch.nn.Module):
-    def __init__(self, input_size: int, hidden_size: int, output_size: int, device: str):
+    def __init__(self, input_size: int, hidden_size: int, output_size: int):
         super(NameClassifier, self).__init__()
-        self._hidden = torch.zeros(size=(1, hidden_size)).to(device)  # Inconvenient, but works.
+        self.hidden_size = hidden_size
         self.rnn = torch.nn.RNN(input_size=input_size, hidden_size=hidden_size)
         self.linear = torch.nn.Linear(in_features=hidden_size, out_features=output_size)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        self._hidden = torch.zeros_like(self._hidden)  # Reinitialize hidden for new sequence.
-
-        for character in x:
-            x, self._hidden = self.rnn(character, self._hidden)
-
-        x = self.linear(x)
-        return x
+    def forward(self, name: torch.Tensor) -> torch.Tensor:
+        # Reinitialize hidden for new sequence.
+        hidden = torch.zeros(size=(1, name.size(1), self.hidden_size)).to(device)
+        name, hidden_n = self.rnn(name, hidden)
+        name = name[-1]  # Only keep last output of the sequence.
+        return self.linear(name)
 
 
-def train(dataset: Names, model, epochs: int, criterion, optimizer, device: str = "cpu"):
+def train(dataset: Names, model, epochs: int, criterion, optimizer):
     model.train()
     average_losses = []
     for _ in tqdm(range(epochs)):
@@ -150,8 +151,7 @@ def train(dataset: Names, model, epochs: int, criterion, optimizer, device: str 
 
 
 def evaluate(model,
-             dataset: Names,
-             device: str = "cpu") -> float:
+             dataset: Names) -> float:
     """:return float: accuracy in %"""
     total = correct = 0
     model.eval()
@@ -169,37 +169,30 @@ def evaluate(model,
 
 def main():
     config = Config("../../config.json")
-    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     data = Names(root=config["names"])
     epochs = 7
 
     model1 = MyRNN(input_size=data.number_characters,
                    hidden_size=50,
-                   output_size=data.number_languages,
-                   device=device).to(device)
+                   output_size=data.number_languages).to(device)
     train(dataset=data,
           model=model1,
           epochs=epochs,
           criterion=torch.nn.CrossEntropyLoss(),
-          optimizer=torch.optim.SGD(model1.parameters(), lr=0.005),
-          device=device)
+          optimizer=torch.optim.SGD(model1.parameters(), lr=0.005))
     evaluate(dataset=data,
-             model=model1,
-             device=device)
+             model=model1)
     model2 = NameClassifier(input_size=data.number_characters,
                             hidden_size=50,
-                            output_size=data.number_languages,
-                            device=device).to(device)
+                            output_size=data.number_languages).to(device)
     train(dataset=data,
           model=model2,
           epochs=epochs,
           criterion=torch.nn.CrossEntropyLoss(),
-          optimizer=torch.optim.SGD(model2.parameters(), lr=0.005),
-          device=device)
+          optimizer=torch.optim.SGD(model2.parameters(), lr=0.005))
     evaluate(dataset=data,
-             model=model2,
-             device=device)
+             model=model2)
 
 
 if __name__ == "__main__":
