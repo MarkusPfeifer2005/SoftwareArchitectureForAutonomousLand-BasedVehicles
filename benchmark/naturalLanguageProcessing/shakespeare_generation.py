@@ -57,6 +57,14 @@ class ShakespeareGenerator(torch.nn.Module):
         sequence_predictions, hidden_n = self.rnn(sequence, hidden)
         return self.linear(sequence_predictions[-1])
 
+    def save(self, path: str):
+        torch.save(self.state_dict(), path)
+        print("Model saved successfully.")
+
+    def load(self, path: str):
+        self.load_state_dict(torch.load(path))
+        print("Model loaded successfully.")
+
 
 def train(dataset: ShakespeareData, model, epochs: int, criterion, optimizer):
     model.train()
@@ -85,16 +93,22 @@ def main():
     config = Config("../../config.json")
 
     shakespeare_data = ShakespeareData(root=config["shakespeare"], sequence_length=20)
-    epochs = 1
+    epochs = 4
 
     model = ShakespeareGenerator(input_size=shakespeare_data.number_characters,
                                  hidden_size=70,
                                  output_size=shakespeare_data.number_characters).to(device)
+
+    try:
+        model.load("../../model-parameters/shakespeare_generator")
+    except FileNotFoundError:
+        pass
     train(dataset=shakespeare_data,
           model=model,
           epochs=epochs,
           criterion=torch.nn.CrossEntropyLoss(),
           optimizer=torch.optim.SGD(model.parameters(), lr=0.005))
+    model.save("../../model-parameters/shakespeare_generator")
 
 
 if __name__ == "__main__":
