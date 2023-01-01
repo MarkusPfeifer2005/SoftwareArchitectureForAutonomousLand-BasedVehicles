@@ -92,11 +92,11 @@ def train(dataset: ShakespeareData, model, epochs: int, criterion, optimizer):
 def main():
     config = Config("../../config.json")
 
-    shakespeare_data = ShakespeareData(root=config["shakespeare"], sequence_length=20)
+    shakespeare_data = ShakespeareData(root=config["shakespeare"], sequence_length=250)
     epochs = 4
 
     model = ShakespeareGenerator(input_size=shakespeare_data.number_characters,
-                                 hidden_size=70,
+                                 hidden_size=100,
                                  output_size=shakespeare_data.number_characters).to(device)
 
     try:
@@ -107,7 +107,7 @@ def main():
           model=model,
           epochs=epochs,
           criterion=torch.nn.CrossEntropyLoss(),
-          optimizer=torch.optim.SGD(model.parameters(), lr=0.005))
+          optimizer=torch.optim.SGD(model.parameters(), lr=0.001))
     model.save("../../model-parameters/shakespeare_generator")
 
 
