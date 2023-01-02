@@ -89,7 +89,7 @@ def train(model: ParentModel,
     for _ in tqdm(range(completed_epochs, completed_epochs + epochs), desc=f"Training '{model.name}'"):
         batch_losses = []
         for data, targets in dataloader:
-            data, targets = data.to(device), targets.to(device)
+            data, targets = data.to(device), targets.long().to(device)
             scores = model.forward(data)
             loss = criterion(scores, targets)
             optimizer.zero_grad()
