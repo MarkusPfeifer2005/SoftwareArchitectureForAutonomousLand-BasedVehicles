@@ -1,4 +1,6 @@
 #!/usr/bin/env python3.10
+from tqdm import tqdm
+
 import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
@@ -43,12 +45,15 @@ class TransposeConvolutionSemanticSegmentator(ParentModel):
             torch.nn.Conv2d(in_channels=image_channels, out_channels=5, kernel_size=7, padding=3),
             torch.nn.Conv2d(in_channels=5, out_channels=5, kernel_size=5, stride=2, padding=2),
             torch.nn.Conv2d(in_channels=5, out_channels=10, kernel_size=5, stride=1, padding=2),
+            torch.nn.ReLU(),
             torch.nn.Conv2d(in_channels=10, out_channels=32, kernel_size=5, stride=2, padding=2),
             torch.nn.Conv2d(in_channels=32, out_channels=32, kernel_size=5, stride=1, padding=2),
             torch.nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=2, padding=1),
+            torch.nn.ReLU(),
             torch.nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=3, stride=2, padding=1),
             torch.nn.ConvTranspose2d(in_channels=32, out_channels=32, kernel_size=5, stride=1, padding=2),
             torch.nn.ConvTranspose2d(in_channels=32, out_channels=10, kernel_size=5, stride=2, padding=2),
+            torch.nn.ReLU(),
             torch.nn.ConvTranspose2d(in_channels=10, out_channels=5, kernel_size=5, stride=1, padding=2),
             torch.nn.ConvTranspose2d(in_channels=5, out_channels=5, kernel_size=5, stride=2, padding=2),
             torch.nn.ConvTranspose2d(in_channels=5, out_channels=classes, kernel_size=7, padding=0)  # Without padding.
@@ -67,7 +72,7 @@ def evaluate(model,
     assert dataloader.batch_size == 1
     total = correct = 0
     model.eval()
-    for image, target in dataloader:
+    for image, target in tqdm(dataloader, desc="evaluating"):
         image, target = image.to(device), target.to(device)
         scores = model(image).argmax(dim=1)
         correct += (scores == target).to(torch.int8).sum().item()
@@ -187,20 +192,37 @@ def main():
                                                                            white_to_class_index]))
     validation_dataloader = DataLoader(dataset=validation_data, batch_size=1, shuffle=True)
 
-    model = PoolSemanticSegmentator(image_channels=3, classes=22).to(device)
-    # model = TransposeConvolutionSemanticSegmentator(image_channels=3, classes=22).to(device)
-    optimizer = torch.optim.SGD(params=model.parameters(), lr=0.001)
+    # model = PoolSemanticSegmentator(image_channels=3, classes=22).to(device)
+    model = TransposeConvolutionSemanticSegmentator(image_channels=3, classes=22).to(device)
+    try:
+        model.load("model-parameters/TransposeConvolutionSemanticSegmentator.pt")
+    except FileNotFoundError:
+        print("Could not load parameters, continue to use default values.")
+    optimizer = torch.optim.Adam(params=model.parameters(), lr=0.0009)
+
+    # Calculate class weights:
+    # According to https://arxiv.org/pdf/1411.4038.pdf not necessary.
+    # number_of_classes = 22
+    # class_occurrences = [0. for _ in range(number_of_classes)]
+    # for _, target in tqdm(train_data, desc="calculating class weights"):
+    #     for class_index in range(number_of_classes):
+    #         class_occurrences[class_index] += (target == class_index).sum().item()
+    # class_weights = [1 / class_ for class_ in class_occurrences]
 
     train(model=model,
           dataloader=train_loader,
           criterion=torch.nn.CrossEntropyLoss(),
           optimizer=optimizer,
-          epochs=7,
+          epochs=20,
           show_graph=True,
           device=device)
     evaluate(model=model,
              dataloader=validation_dataloader,
              device=device)
+    try:
+        model.save(path="model-parameters")
+    except OSError:
+        pass
 
     # Check a sample.
     data = VOCSegmentation(root=config["voc-segmentation"],
