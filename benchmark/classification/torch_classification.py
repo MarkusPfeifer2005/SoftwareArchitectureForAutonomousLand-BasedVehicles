@@ -18,11 +18,14 @@ class ParentModel(nn.Module):
         self.file_extension = ".pt"
 
     def save(self, path: str):
-        """Saves model to file.
-        Extension '.pt'."""
+        """Saves model to file. Extension: '.pt'."""
         path = os.path.join(path, f"{self.name}{self.file_extension}")
-        torch.save(self, path)
-        print(f"Successfully saved model to {path}.")
+        torch.save(self.state_dict(), path)
+        print(f"Model saved successfully to {path}.")
+
+    def load(self, path: str):
+        self.load_state_dict(torch.load(path))
+        print("Model loaded successfully.")
 
 
 class TorchLinearClassifier(ParentModel):
@@ -92,9 +95,9 @@ def train(model: ParentModel,
             data, targets = data.to(device), targets.long().to(device)
             scores = model.forward(data)
             loss = criterion(scores, targets)
-            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            optimizer.zero_grad()
             batch_losses.append(loss.item())
         avg_losses.append(sum(batch_losses)/len(batch_losses))
         if scheduler:
