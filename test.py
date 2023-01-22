@@ -4,11 +4,11 @@ import os
 import shutil
 import numpy as np
 
-from init import Config
-from benchmark.nearest_neighbour import Cifar10Dataset, ManhattanModel, train, evaluate
-from mlib.scratch import SVMLossVectorized, WeightMultiplication, BiasAddition, SigmoidLayer,\
+from configuration_handler import Config
+from cifar10_knn_classification import Cifar10Dataset, ManhattanModel, train, evaluate
+from my_machine_learning_library import SVMLossVectorized, WeightMultiplication, BiasAddition, SigmoidLayer,\
     LinearLayer, MathematicalFunc, Model, StochasticGradientDecent, Layer, MSE
-from benchmark.classification.scratch_classification import DoubleLinearClassifier, LinearClassifier
+from classification.cifar10_image_classification_with_my_lib import DoubleLinearClassifier, LinearClassifier
 
 
 def gradient_check(m_func: MathematicalFunc, x: np.ndarray, d: float = 1e-4) -> list:

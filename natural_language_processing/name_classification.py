@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import Dataset
 
-from init import Config
+from configuration_handler import Config
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"  # Global.
@@ -168,7 +168,7 @@ def evaluate(model,
 
 
 def main():
-    config = Config("../../config.json")
+    config = Config("../config.json")
 
     data = Names(root=config["names"])
     epochs = 7

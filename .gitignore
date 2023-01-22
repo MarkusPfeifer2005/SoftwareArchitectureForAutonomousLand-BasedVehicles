@@ -5,3 +5,5 @@ model_parameters/
 model-parameters/
 datasets/
 config.json
+snippets/
+test-files/

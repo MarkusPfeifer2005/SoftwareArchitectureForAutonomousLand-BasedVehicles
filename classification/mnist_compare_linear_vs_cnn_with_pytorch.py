@@ -4,11 +4,11 @@ import torch.nn as nn
 import torchvision
 import torch.utils.data
 
-from init import Config
-from torch_classification import ParentModel, train, evaluate
+from configuration_handler import Config
+from mnist_image_classification_with_pytorch import SaveableModule, train, evaluate
 
 
-class Classic(ParentModel):
+class Classic(SaveableModule):
     def __init__(self, num_pixels: int = 784, num_classes: int = 10, name: str = None):
         super().__init__(name=name)
         self.operations = nn.Sequential(
@@ -21,7 +21,7 @@ class Classic(ParentModel):
         return self.operations(x)
 
 
-class CNN(ParentModel):
+class CNN(SaveableModule):
     def __init__(self, num_classes: int = 10, name: str = None):
         super().__init__(name=name)
         self.convolutions = nn.Sequential(
@@ -40,7 +40,7 @@ class CNN(ParentModel):
 
 
 def main():
-    config = Config("../../config.json")
+    config = Config("../config.json")
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     train_set1 = torchvision.datasets.MNIST(

@@ -4,7 +4,7 @@ import pickle
 import os
 import matplotlib.pyplot as plt
 
-from init import Config
+from configuration_handler import Config
 
 
 class Cifar10Dataset:
@@ -88,7 +88,7 @@ def evaluate(model, dataset: Cifar10Dataset,
 
 
 def main():
-    config = Config("../config.json")
+    config = Config("config.json")
     train_set: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 5), root=config["cifar"])
     test_set: Cifar10Dataset = Cifar10Dataset(batches=slice(5, 6), root=config["cifar"])
     model: ManhattanModel = ManhattanModel()

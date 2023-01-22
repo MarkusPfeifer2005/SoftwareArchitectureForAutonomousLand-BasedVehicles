@@ -1,10 +1,11 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.10
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from benchmark.nearest_neighbour import Cifar10Dataset, evaluate
-from mlib.scratch import SVMLossVectorized, LinearLayer, SigmoidLayer, Model, StochasticGradientDecent
-from init import Config
+from cifar10_knn_classification import Cifar10Dataset, evaluate
+from my_machine_learning_library import SVMLossVectorized, LinearLayer,\
+    SigmoidLayer, Model, StochasticGradientDecent
+from configuration_handler import Config
 
 
 class LinearClassifier(Model):
@@ -51,28 +52,20 @@ def train(model: Model, dataset: Cifar10Dataset, criterion, optimizer, epochs: i
 
 
 def main():
-    config = Config("../../config.json")
+    config = Config("../config.json")
 
-    train_set: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 4), root=config["cifar"])
-    evaluation_set: Cifar10Dataset = Cifar10Dataset(batches=slice(4, 5), root=config["cifar"])
+    train_set: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 5), root=config["cifar"])
     test_set: Cifar10Dataset = Cifar10Dataset(batches=slice(5, 6), root=config["cifar"])
-    model = SigmoidModel()
-    criterion = SVMLossVectorized()
-    optimizer = StochasticGradientDecent(model_layers=model.layers, lr=1e-3)
+    epochs = 10
 
-    epochs = 3
-    # Loading does not work (see message in Model.load doc)!
-    # if input("Do you want to try and load model parameters? (y/n): ").lower() == 'y':
-    #     comp_epochs = model.load(config["model-parameters"])
-    #     print(f"Loaded model parameters pretrained on {comp_epochs} epochs.")
-    # else:
-    #     comp_epochs = 0
-    #     print("Did not load models.")
-    train(model, train_set, criterion, optimizer, epochs=epochs)
-    # model.save(path=config["model-parameters"], epoch=epochs + comp_epochs)
-    evaluate(model, train_set, normalize=True)
-    evaluate(model, evaluation_set, normalize=True)
-    evaluate(model, test_set, normalize=True)
+    models = [LinearClassifier(), DoubleLinearClassifier(), SigmoidModel()]
+    criterion = SVMLossVectorized()
+
+    for model in models:
+        optimizer = StochasticGradientDecent(model_layers=model.layers, lr=1e-3)
+        train(model, train_set, criterion, optimizer, epochs=epochs)
+        evaluate(model, train_set, normalize=True)
+        evaluate(model, test_set, normalize=True)
 
 
 if __name__ == "__main__":

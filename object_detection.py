@@ -1,22 +1,21 @@
-#!usr/bin/env python
+#!usr/bin/env python3.10
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import os
 import time
 
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from torchvision import transforms
-from torchvision.transforms.functional import to_pil_image, to_tensor
+from torchvision.transforms.functional import to_pil_image
 from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.datasets import VOCDetection
-from torchvision.ops import generalized_box_iou_loss
 from torchvision.utils import draw_bounding_boxes
 
-from init import Config
+from configuration_handler import Config
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 classes = [
     "background",
     "aeroplane",
@@ -73,6 +72,11 @@ class AnnotatedImage:
         image = to_pil_image(image)
         image.show()
 
+    def save(self, path: str):
+        image = draw_bounding_boxes(image=self.image, boxes=self.boxes, labels=self.labels)
+        image = to_pil_image(image)
+        image.save(path)
+
 
 def train(model: torch.nn.Module,
           data_loader: DataLoader,
@@ -85,12 +89,12 @@ def train(model: torch.nn.Module,
     for epoch in range(epochs):
         epoch_losses = []
         for image, target in tqdm(data_loader, desc=f"training on epoch {epoch} of {epochs}"):
-            image = image.to(device)
-            target["boxes"] = target["boxes"].to(device)
-            target["labels"] = target["labels"].to(device)
+            image = image.to(DEVICE)
+            target["boxes"] = target["boxes"].to(DEVICE)
+            target["labels"] = target["labels"].to(DEVICE)
             scores = model([image], [target])  # Somehow my GPU cannot handle more than a single image.
             total_loss = scores["loss_classifier"] + scores["loss_box_reg"] + \
-                scores["loss_objectness"] + scores["loss_rpn_box_reg"]
+                         scores["loss_objectness"] + scores["loss_rpn_box_reg"]
             total_loss.backward()
 
             optimizer.step()
@@ -128,37 +132,53 @@ def main():
                               download=False,
                               transform=transforms.ToTensor(),
                               target_transform=target_transformation)
+    test_data = VOCDetection(root=config["voc-segmentation"],
+                             year="2012",
+                             image_set="val",
+                             download=False,
+                             transform=transforms.ToTensor(),
+                             target_transform=target_transformation)
     train_loader = DataLoader(dataset=train_data,
                               batch_size=None,
                               shuffle=True,
                               num_workers=4)
 
-    # Define model:
+    # define the model
     model = fasterrcnn_resnet50_fpn(weigths=FasterRCNN_ResNet50_FPN_Weights.DEFAULT)
     in_features = model.roi_heads.box_predictor.cls_score.in_features
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes=22)
+
+    # load the model
     try:
         load(model, path="model-parameters/FasterRCNN_only_last_layers.pt")
     except FileNotFoundError:
         print("Could not load model weights, continuing with default weights.")
+
     # Define what parameters are being updated:
     for parameter in model.parameters():
         parameter.requires_grad = False
-    # for index, parameter in enumerate(model.parameters()):
-    #     if index > 11:
-    #         parameter.requires_grad = True
     for parameter in model.roi_heads.box_predictor.parameters():
         parameter.requires_grad = True
-    model = model.to(device)
+
+    model = model.to(DEVICE)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     train(
         model=model,
         data_loader=train_loader,
         optimizer=optimizer,
-        epochs=20,
+        epochs=0,
         show_graph=True
     )
+
+    # manually evaluate model
+    model.eval()
+    for index, (image, target) in enumerate(test_data):
+        scores = model([image])
+        AnnotatedImage(image, scores).show()
+        AnnotatedImage(image, [target]).show()
+        if input("press 'enter' to continue or 'q' to quit: ").lower() == 'q':
+            break
 
 
 if __name__ == "__main__":

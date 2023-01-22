@@ -1,14 +1,14 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.10
 import torch
 import torch.nn as nn
 import torchvision
 import torch.utils.data
 
-from init import Config
-from torch_classification import ParentModel, train, evaluate
+from configuration_handler import Config
+from mnist_image_classification_with_pytorch import SaveableModule, train, evaluate
 
 
-class CNN(ParentModel):
+class CNN(SaveableModule):
     def __init__(self, num_classes: int = 10, name: str = None):
         super().__init__(name=name)
         self.convolutions = nn.Sequential(
@@ -29,7 +29,7 @@ class CNN(ParentModel):
 
 
 def main():
-    config = Config("../../config.json")
+    config = Config("../config.json")
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     train_set = torchvision.datasets.CIFAR10(

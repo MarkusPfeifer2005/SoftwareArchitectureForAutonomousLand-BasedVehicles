@@ -8,11 +8,11 @@ from torchvision.datasets import VOCSegmentation
 from torchvision.transforms.functional import to_pil_image, pil_to_tensor
 from torchvision.utils import draw_segmentation_masks
 
-from benchmark.classification.torch_classification import ParentModel, train
-from init import Config
+from classification.mnist_image_classification_with_pytorch import SaveableModule, train
+from configuration_handler import Config
 
 
-class PoolSemanticSegmentator(ParentModel):
+class PoolSemanticSegmentator(SaveableModule):
     def __init__(self, image_channels: int, classes: int, name: str = "PoolSemanticSegmentator"):
         super(PoolSemanticSegmentator, self).__init__(name=name)
         # width, height = image_size
@@ -38,7 +38,7 @@ class PoolSemanticSegmentator(ParentModel):
         return x
 
 
-class TransposeConvolutionSemanticSegmentator(ParentModel):
+class TransposeConvolutionSemanticSegmentator(SaveableModule):
     def __init__(self, image_channels: int, classes: int, name: str = "TransposeConvolutionSemanticSegmentator"):
         super(TransposeConvolutionSemanticSegmentator, self).__init__(name=name)
         self.operations = torch.nn.Sequential(

@@ -3,11 +3,11 @@ import torch
 import torchvision
 import torch.utils.data
 
-from init import Config
-from torch_classification import ParentModel, train, evaluate
+from configuration_handler import Config
+from mnist_image_classification_with_pytorch import SaveableModule, train, evaluate
 
 
-class AlexNet(ParentModel):
+class AlexNet(SaveableModule):
     """https://en.wikipedia.org/wiki/AlexNet"""
     def __init__(self, name: str = "alex_model"):
         super(AlexNet, self).__init__(name=name)
@@ -51,14 +51,14 @@ class AlexNet(ParentModel):
 
 
 def main():
-    config = Config("../../config.json")
+    config = Config("../config.json")
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    image_size = (32, 32)  # Original Cifar-10 images are (32, 32).
+    image_size = (224, 224)  # Original Cifar-10 images are (32, 32).
 
     train_set = torchvision.datasets.CIFAR10(
         root=config["t-cifar"],
-        download=False,  # Setting this to False saves time.
+        download=False,  # Setting download to False saves time.
         train=True,  # Is automatically implemented, some files do not get used.
         transform=torchvision.transforms.Compose([
             torchvision.transforms.ToTensor(),
@@ -79,7 +79,7 @@ def main():
 
     alex_model = AlexNet().to(device)
     try:
-        alex_model.load("../../model-parameters/alex_model.pt")
+        alex_model.load("../model-parameters/alex_model.pt")
     except FileNotFoundError:
         print("Could not load parameters, continue to use default values.")
     optimizer = torch.optim.Adam(alex_model.parameters(), lr=0.0009)
@@ -88,12 +88,12 @@ def main():
         dataloader=train_loader,
         criterion=torch.nn.CrossEntropyLoss(),
         optimizer=optimizer,
-        epochs=10,
+        epochs=5,
         show_graph=True,
         device=device
     )
     try:
-        alex_model.save(path="../../model-parameters")
+        alex_model.save(path="../model-parameters")
     except OSError:
         pass
     evaluate(model=alex_model, dataloader=test_loader, device=device)

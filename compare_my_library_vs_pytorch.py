@@ -3,12 +3,13 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
 
-from nearest_neighbour import Cifar10Dataset
-from nearest_neighbour import evaluate
-from mlib.scratch import SVMLossVectorized, StochasticGradientDecent
-from benchmark.classification.scratch_classification import LinearClassifier, ExperimentalModel, SigmoidModel
-from benchmark.classification.torch_classification import TorchLinearClassifier, TorchExperimentalModel, TorchSigmoidModel
-from init import Config
+from cifar10_knn_classification import Cifar10Dataset, evaluate
+from my_machine_learning_library import SVMLossVectorized, StochasticGradientDecent
+from classification.cifar10_image_classification_with_my_lib import LinearClassifier, DoubleLinearClassifier, \
+    SigmoidModel
+from classification.mnist_image_classification_with_pytorch import TorchLinearClassifier, TorchDoubleLinearModel, \
+    TorchSigmoidModel
+from configuration_handler import Config
 
 import torch
 import torch.nn as nn
@@ -63,9 +64,9 @@ def train(models: list, model_class: str, dataset: Cifar10Dataset, criteria: lis
 
 
 def evaluate_torch_cifar(model,
-              dataset: Cifar10Dataset,
-              normalize: bool = False,
-              images: slice = slice(None, None, None)) -> float:
+                         dataset: Cifar10Dataset,
+                         normalize: bool = False,
+                         images: slice = slice(None, None, None)) -> float:
     """For Cifar10 only."""
     total = correct = 0
     for batch in dataset:
@@ -80,21 +81,22 @@ def evaluate_torch_cifar(model,
             if prediction == target:
                 correct += 1
 
-    print(f"{correct} of {total} examples were correct resulting in an accuracy of {correct/total*100:.2f}%.")
-    return correct/total*100
+    print(f"{correct} of {total} examples were correct resulting in an accuracy of {correct / total * 100:.2f}%.")
+    return correct / total * 100
+
 
 def main():
-    config = Config("../config.json")
+    config = Config("config.json")
     train_set: Cifar10Dataset = Cifar10Dataset(batches=slice(0, 1), root=config["cifar"])
     evaluation_set: Cifar10Dataset = Cifar10Dataset(batches=slice(4, 5), root=config["cifar"])
-    epochs = int(100)
+    epochs = 100
 
     # define models
     models = {
         "linear": (LinearClassifier(), TorchLinearClassifier()),
-        "experimental": (ExperimentalModel(), TorchExperimentalModel()),
+        "double-linear": (DoubleLinearClassifier(), TorchDoubleLinearModel()),
         "sigmoid": (SigmoidModel(), TorchSigmoidModel().double())  # parameters with datatype double
-              }
+    }
 
     for key in models:
         my_model = models[key][0]

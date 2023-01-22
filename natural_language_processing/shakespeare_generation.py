@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 import torch
 
-from init import Config
+from configuration_handler import Config
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"  # Global.
@@ -90,7 +90,7 @@ def train(dataset: ShakespeareData, model, epochs: int, criterion, optimizer):
 
 
 def main():
-    config = Config("../../config.json")
+    config = Config("../config.json")
 
     shakespeare_data = ShakespeareData(root=config["shakespeare"], sequence_length=250)
     epochs = 4
@@ -100,7 +100,7 @@ def main():
                                  output_size=shakespeare_data.number_characters).to(device)
 
     try:
-        model.load("../../model-parameters/shakespeare_generator")
+        model.load("../model-parameters/shakespeare_generator")
     except FileNotFoundError:
         pass
     train(dataset=shakespeare_data,
@@ -108,7 +108,7 @@ def main():
           epochs=epochs,
           criterion=torch.nn.CrossEntropyLoss(),
           optimizer=torch.optim.SGD(model.parameters(), lr=0.001))
-    model.save("../../model-parameters/shakespeare_generator")
+    model.save("../model-parameters/shakespeare_generator")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.10
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import os
@@ -8,10 +8,10 @@ import torch.nn as nn
 import torchvision
 import torch.utils.data
 
-from init import Config
+from configuration_handler import Config
 
 
-class ParentModel(nn.Module):
+class SaveableModule(nn.Module):
     def __init__(self, name: str = None):
         super().__init__()
         self.name = name
@@ -28,7 +28,7 @@ class ParentModel(nn.Module):
         print("Model loaded successfully.")
 
 
-class TorchLinearClassifier(ParentModel):
+class TorchLinearClassifier(SaveableModule):
     def __init__(self, num_pixels: int = 3072, num_classes: int = 10, name: str = None):
         super().__init__(name=name)
         self.linear1 = nn.Linear(in_features=num_pixels, out_features=num_classes)
@@ -38,7 +38,7 @@ class TorchLinearClassifier(ParentModel):
         return x
 
 
-class TorchExperimentalModel(ParentModel):
+class TorchDoubleLinearModel(SaveableModule):
     def __init__(self, num_pixels: int = 3072, num_classes: int = 10, name: str = None):
         super().__init__(name=name)
         self.linear1 = nn.Linear(in_features=num_pixels, out_features=100)
@@ -50,7 +50,7 @@ class TorchExperimentalModel(ParentModel):
         return x
 
 
-class TorchSigmoidModel(ParentModel):
+class TorchSigmoidModel(SaveableModule):
     def __init__(self, num_pixels: int = 3072, num_classes: int = 10, name: str = None):
         super().__init__(name=name)
         self.linear1 = nn.Linear(in_features=num_pixels, out_features=100)
@@ -64,7 +64,7 @@ class TorchSigmoidModel(ParentModel):
         return x
 
 
-class AlphaModel(ParentModel):
+class BestPerformingModel(SaveableModule):
     def __init__(self, num_pixels: int = 3072, num_classes: int = 10, name: str = None):
         super().__init__(name=name)
         self.operations = nn.Sequential(
@@ -77,7 +77,7 @@ class AlphaModel(ParentModel):
         return self.operations(x)
 
 
-def train(model: ParentModel,
+def train(model: SaveableModule,
           dataloader: torch.utils.data.DataLoader,
           criterion,
           optimizer,
@@ -131,8 +131,8 @@ def evaluate(model,
 
 
 def main():
-    """Testing the performance of the AlphaModel on the MNIST dataset."""
-    config = Config("../../config.json")
+    """Testing the performance of the BestPerformingModel on the MNIST dataset."""
+    config = Config("../config.json")
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     train_set = torchvision.datasets.MNIST(
@@ -156,7 +156,7 @@ def main():
     train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=32, shuffle=True)
     test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=1, shuffle=True)
 
-    model = AlphaModel(num_pixels=784, name="Alpha").to(device)
+    model = BestPerformingModel(num_pixels=784, name="BestModel").to(device)
     optimizer = torch.optim.SGD(model.parameters(), lr=.005, momentum=.75)
     train(
         model=model,
