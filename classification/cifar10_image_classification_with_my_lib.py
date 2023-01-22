@@ -1,6 +1,7 @@
 #!/usr/bin/env python3.10
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from time import sleep
 
 from cifar10_knn_classification import Cifar10Dataset, evaluate
 from my_machine_learning_library import SVMLossVectorized, LinearLayer,\
@@ -33,6 +34,7 @@ class SigmoidModel(Model):
 
 def train(model: Model, dataset: Cifar10Dataset, criterion, optimizer, epochs: int, completed_epochs: int = 0,
           normalize: bool = False) -> list[float]:
+    sleep(0.1)  # Ensure that print statements do not interfere.
     average_losses = []
     for _ in tqdm(range(completed_epochs, completed_epochs + epochs), desc="Training the model"):
         batch_losses = []
@@ -58,10 +60,16 @@ def main():
     criterion = SVMLossVectorized()
 
     for model in models:
-        optimizer = StochasticGradientDecent(model_layers=model.layers, lr=1e-3)
-        average_losses = train(model, train_set, criterion, optimizer, epochs=epochs)
-        accuracy_on_train = evaluate(model, train_set, normalize=True)
-        accuracy_on_test = evaluate(model, test_set, normalize=True)
+        experiment_count = 5
+        average_losses, accuracies, datasets = [], [], []
+        for experiment in range(experiment_count):
+            model.__init__()  # Ensure that new parameters are used for each experiment.
+            optimizer = StochasticGradientDecent(model_layers=model.layers, lr=1e-3)
+            average_losses.append(train(model, train_set, criterion, optimizer, epochs=epochs))
+            accuracies.append(round(evaluate(model, train_set, normalize=True)))
+            datasets.append(f"train #{experiment}")
+            accuracies.append(round(evaluate(model, test_set, normalize=True)))
+            datasets.append(f"test #{experiment}")
 
         # plotting:
         figure = plt.figure()
@@ -70,19 +78,20 @@ def main():
         axis1.set_title(f"Loss development of {model.name}.")
         axis1.set_ylabel("Average Losses")
         axis1.set_xlabel("Epochs")
-        axis1.plot(average_losses)
+        for experiment, average_loss in enumerate(average_losses):
+            axis1.plot(average_loss, label=f"experiment #{experiment}")
+        axis1.legend(loc="best")
 
         axis2 = figure.add_subplot(1, 2, 2)
         axis2.set_title(f"Accuracy of {model.name}.")
         axis2.set_ylabel("Accuracy in %")
         axis2.set_xlabel("Datasets")
         axis2.set_ylim([0, 100])
-        datasets = ["train", "test"]
-        accuracies = [round(accuracy_on_train, 2), round(accuracy_on_test, 2)]
         axis2.bar(datasets, accuracies)
         for i in range(len(datasets)):
             axis2.text(i, accuracies[i], accuracies[i], ha="center")
 
+        figure.tight_layout()  # Make sure labels are not overlapping.
         plt.show()
 
 
