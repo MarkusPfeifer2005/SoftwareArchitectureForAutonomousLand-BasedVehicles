@@ -64,6 +64,7 @@ def evaluate(model, dataset: Cifar10Dataset,
              show: bool = False,
              normalize: bool = False,
              images: slice = slice(None, None, None)) -> float:
+    """Evaluates the model on the dataset and returns the accuracy in %."""
     total = correct = 0
     for batch in dataset:
         for img, lbl in zip(batch[b"data"][images], batch[b"labels"][images]):
