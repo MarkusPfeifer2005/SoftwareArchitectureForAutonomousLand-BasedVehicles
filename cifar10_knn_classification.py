@@ -33,7 +33,7 @@ class Cifar10Dataset:
 
     def __iter__(self) -> object:
         """Yields content of batch (see docstring of MyDataset)."""
-        for file in [file for file in os.listdir(self._root) if "_batch" in file][self.batches]:
+        for file in [file for file in os.listdir(self._root) if "_batch" in file][self.batches]:  # leaves out test data
             with open(os.path.join(self._root, file), "rb") as batch:
                 yield pickle.load(batch, encoding="bytes")
 

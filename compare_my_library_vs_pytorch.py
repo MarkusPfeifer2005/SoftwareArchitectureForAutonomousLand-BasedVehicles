@@ -16,7 +16,7 @@ import torch.nn as nn
 
 
 def train(models: list, model_class: str, dataset: Cifar10Dataset, criteria: list, optimizers: list, epochs: int,
-          completed_epochs: int = 0, normalize: bool = False):
+          completed_epochs: int = 0, normalize: bool = False, float_precision: int = 2):
     avg_losses0, avg_losses1 = [], []
     for _ in tqdm(range(completed_epochs, completed_epochs + epochs), desc=f"Training the {model_class} models"):
         batch_losses0, batch_losses1 = [], []
@@ -26,11 +26,13 @@ def train(models: list, model_class: str, dataset: Cifar10Dataset, criteria: lis
 
             m_scores = models[0].forward(data)
             t_scores = models[1].forward(torch.from_numpy(data))
-            assert np.round(m_scores, 3).tolist() == torch.round(t_scores, decimals=3).tolist(), "scores are unequal"
+            assert np.round(m_scores, float_precision).tolist() == \
+                   torch.round(t_scores, decimals=float_precision).tolist(), "scores are unequal"
 
             m_loss = criteria[0](m_scores, targets)
             t_loss = criteria[1](t_scores, torch.tensor(targets))
-            assert round(m_loss, 3) == round(t_loss.item(), 3), f"{m_loss} != {t_loss.item()}"
+            assert round(m_loss, float_precision) == round(t_loss.item(), float_precision),\
+                f"{m_loss} != {t_loss.item()}"
 
             m_grads = []
             grad = criteria[0].backward()
