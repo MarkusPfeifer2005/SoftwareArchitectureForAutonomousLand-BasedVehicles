@@ -8,7 +8,7 @@ from configuration_handler import Config
 from cifar10_knn_classification import Cifar10Dataset, ManhattanModel, train, evaluate
 from my_machine_learning_library import SVMLossVectorized, WeightMultiplication, BiasAddition, SigmoidLayer,\
     LinearLayer, MathematicalFunc, Model, StochasticGradientDecent, Layer, MSE
-from classification.cifar10_image_classification_with_my_lib import DoubleLinearClassifier, LinearClassifier
+from cifar10_image_classification_with_my_lib import DoubleLinearClassifier, LinearClassifier
 
 
 def gradient_check(m_func: MathematicalFunc, x: np.ndarray, d: float = 1e-4) -> list:

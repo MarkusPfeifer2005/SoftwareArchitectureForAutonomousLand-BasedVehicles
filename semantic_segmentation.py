@@ -8,7 +8,7 @@ from torchvision.datasets import VOCSegmentation
 from torchvision.transforms.functional import to_pil_image, pil_to_tensor
 from torchvision.utils import draw_segmentation_masks
 
-from classification.mnist_image_classification_with_pytorch import SaveableModule, train
+from mnist_image_classification_with_pytorch import SaveableModule, train
 from configuration_handler import Config
 
 

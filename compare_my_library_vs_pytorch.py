@@ -5,9 +5,9 @@ import numpy as np
 
 from cifar10_knn_classification import Cifar10Dataset, evaluate
 from my_machine_learning_library import SVMLossVectorized, StochasticGradientDecent
-from classification.cifar10_image_classification_with_my_lib import LinearClassifier, DoubleLinearClassifier, \
+from cifar10_image_classification_with_my_lib import LinearClassifier, DoubleLinearClassifier, \
     SigmoidModel
-from classification.mnist_image_classification_with_pytorch import TorchLinearClassifier, TorchDoubleLinearModel, \
+from mnist_image_classification_with_pytorch import TorchLinearClassifier, TorchDoubleLinearModel, \
     TorchSigmoidModel
 from configuration_handler import Config
 

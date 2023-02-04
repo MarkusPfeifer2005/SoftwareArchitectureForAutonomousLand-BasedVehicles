@@ -168,7 +168,7 @@ def evaluate(model,
 
 
 def main():
-    config = Config("../config.json")
+    config = Config("config.json")
 
     data = Names(root=config["names"])
     epochs = 7

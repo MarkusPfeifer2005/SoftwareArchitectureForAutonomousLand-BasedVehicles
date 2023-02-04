@@ -51,7 +51,7 @@ class AlexNet(SaveableModule):
 
 
 def main():
-    config = Config("../config.json")
+    config = Config("./config.json")
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     image_size = (224, 224)  # Original Cifar-10 images are (32, 32).
@@ -79,7 +79,7 @@ def main():
 
     alex_model = AlexNet().to(device)
     try:
-        alex_model.load("../model-parameters/alex_model.pt")
+        alex_model.load("model-parameters/alex_model.pt")
     except FileNotFoundError:
         print("Could not load parameters, continue to use default values.")
     optimizer = torch.optim.Adam(alex_model.parameters(), lr=0.0009)
@@ -93,7 +93,7 @@ def main():
         device=device
     )
     try:
-        alex_model.save(path="../model-parameters")
+        alex_model.save(path="model-parameters")
     except OSError:
         pass
     evaluate(model=alex_model, dataloader=test_loader, device=device)

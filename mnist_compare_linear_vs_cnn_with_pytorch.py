@@ -40,7 +40,7 @@ class CNN(SaveableModule):
 
 
 def main():
-    config = Config("../config.json")
+    config = Config("config.json")
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     train_set1 = torchvision.datasets.MNIST(
